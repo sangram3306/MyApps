@@ -25,6 +25,12 @@ export interface ItineraryEntry {
   currency: string;    // currency code of price entered
   notes: string;
   createdAt: string;   // ISO datetime
+  documents?: {
+    id: string;
+    name: string;
+    uri: string;
+    type: string;
+  }[];
   flightDetails?: {
     from: string;
     to: string;

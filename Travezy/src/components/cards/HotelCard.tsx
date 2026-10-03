@@ -6,6 +6,7 @@ import { Typography } from '../../theme/typography';
 import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
 import { OngoingHotelMeta } from '../../../app/(tabs)/itinerary';
+import DocumentPills from '../DocumentPills';
 
 interface HotelCardProps {
   entry: ItineraryEntry;
@@ -117,6 +118,8 @@ export default function HotelCard({
               </Text>
             </View>
         </View>
+
+        {!isCheckOutNode && <DocumentPills documents={entry.documents} theme={theme} />}
 
         {isSummary && collapsedSummary && (
           <View style={[styles.collapsedSummaryChip, { backgroundColor: accentColor + '15', borderColor: accentColor + '30' }]}>

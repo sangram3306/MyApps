@@ -9,14 +9,20 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import { useApp } from '../../src/context/AppContext';
 import { Colors } from '../../src/theme/colors';
 import { Typography } from '../../src/theme/typography';
 import { CURRENCIES } from '../../src/data/exchangeRates';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
+import { exportAllData, importAllData } from '../../src/storage/asyncStorage';
 
 
 function OfflineRatesEditor({
@@ -110,6 +116,55 @@ export default function SettingsScreen() {
   const colors = Colors[state.settings.theme];
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [editingCurrencyIndex, setEditingCurrencyIndex] = useState<number | null>(null);
+  const [isProcessingData, setIsProcessingData] = useState(false);
+
+  const handleExportData = async () => {
+    try {
+      setIsProcessingData(true);
+      const jsonString = await exportAllData();
+      const fileUri = FileSystem.cacheDirectory + 'TravezyBackup.travezy';
+      await FileSystem.writeAsStringAsync(fileUri, jsonString);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Export Travezy Backup'
+        });
+      } else {
+        Alert.alert('Error', 'Sharing is not available on this device');
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Export Failed', 'An error occurred while exporting data.');
+    } finally {
+      setIsProcessingData(false);
+    }
+  };
+
+  const handleImportData = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setIsProcessingData(true);
+        const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
+        const success = await importAllData(fileContent);
+        if (success) {
+          Alert.alert('Import Successful', 'Data has been successfully imported. Please restart the app to apply all changes completely.');
+        } else {
+          Alert.alert('Import Failed', 'The selected file is not a valid backup or is corrupted.');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Import Failed', 'An error occurred while importing data.');
+    } finally {
+      setIsProcessingData(false);
+    }
+  };
 
   const getCurrencyName = (code: string) => {
     return CURRENCIES.find((c) => c.code === code)?.name || code;
@@ -279,6 +334,42 @@ export default function SettingsScreen() {
           ))}
         </View>
 
+        {/* Data Management Section */}
+        <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
+          Data Management
+        </Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity style={[styles.row, { borderBottomColor: colors.borderLight }]} onPress={handleExportData} disabled={isProcessingData}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Export Backup</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Save all data and documents to a file
+                </Text>
+              </View>
+            </View>
+            {isProcessingData ? <ActivityIndicator color={colors.primary} size="small" /> : <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.row} onPress={handleImportData} disabled={isProcessingData}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="cloud-download-outline" size={18} color={colors.accent} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Import Backup</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Restore data from a backup file
+                </Text>
+              </View>
+            </View>
+            {isProcessingData ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />}
+          </TouchableOpacity>
+        </View>
+
         {/* About Section */}
         <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
           About
@@ -309,6 +400,44 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
+        </View>
+
+        {/* Data Management Section */}
+        <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
+          Data Management
+        </Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          
+          <TouchableOpacity style={[styles.row, { borderBottomColor: colors.borderLight }]} onPress={handleExportData} disabled={isProcessingData}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Export Backup</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Save all data and documents to a file
+                </Text>
+              </View>
+            </View>
+            {isProcessingData ? <ActivityIndicator color={colors.primary} size="small" /> : <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.row} onPress={handleImportData} disabled={isProcessingData}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="cloud-download-outline" size={18} color={colors.accent} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Import Backup</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Restore data from a backup file
+                </Text>
+              </View>
+            </View>
+            {isProcessingData ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />}
+          </TouchableOpacity>
+
         </View>
 
         {/* Exchange Rate Info */}

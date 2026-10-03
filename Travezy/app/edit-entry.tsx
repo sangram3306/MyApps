@@ -19,6 +19,7 @@ import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
 import { EntryType, ENTRY_TYPE_META } from '../src/types';
 import { toLocalDateString } from '../src/utils/date';
+import DocumentManager from '../src/components/DocumentManager';
 
 const ENTRY_TYPES: EntryType[] = ['flight', 'hotel', 'attraction', 'food', 'transport', 'other'];
 
@@ -46,6 +47,8 @@ export default function EditEntryScreen() {
   const [notes, setNotes] = useState(params.notes || '');
 
   const existingEntry = state.entries.find(e => e.id === params.entryId);
+  
+  const [documents, setDocuments] = useState<any[]>(existingEntry?.documents || []);
   const flightDetails = existingEntry?.flightDetails;
 
   // Flight-specific states
@@ -158,6 +161,7 @@ export default function EditEntryScreen() {
       currency: params.currency || 'USD',
       notes: notes.trim(),
       createdAt: existingEntry?.createdAt || new Date().toISOString(),
+      documents,
       ...(type === 'flight' && {
         flightDetails: flightType === 'direct' ? {
           from: flightFrom.trim(),
@@ -853,6 +857,8 @@ export default function EditEntryScreen() {
               placeholderTextColor={colors.textMuted}
             />
           </View>
+
+          <DocumentManager documents={documents} onChange={setDocuments} theme={state.settings.theme} />
 
           {/* Delete Button */}
           <TouchableOpacity

@@ -156,3 +156,72 @@ export async function getPackingCategories(): Promise<PackingCategory[]> {
 export async function savePackingCategories(categories: PackingCategory[]): Promise<void> {
   await writeJSON(FILE_NAMES.PACKING, categories);
 }
+
+// ─── Export & Import ────────────────────────────────
+
+export async function exportAllData(): Promise<string> {
+  const trips = await getTrips();
+  const entries = await getAllEntries();
+  const settings = await getSettings();
+  const activeTripId = await getActiveTripId();
+  const packing = await getPackingCategories();
+
+  // Read all documents attached to entries and encode to base64
+  const documentFiles: Record<string, string> = {};
+  for (const entry of entries) {
+    if (entry.documents) {
+      for (const doc of entry.documents) {
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(doc.uri);
+          if (fileInfo.exists) {
+            const base64 = await FileSystem.readAsStringAsync(doc.uri, { encoding: FileSystem.EncodingType.Base64 });
+            documentFiles[doc.name] = base64;
+          }
+        } catch (error) {
+          console.warn(`Failed to export document ${doc.name}`, error);
+        }
+      }
+    }
+  }
+
+  const exportObject = {
+    trips,
+    entries,
+    settings,
+    activeTripId,
+    packing,
+    documentFiles,
+  };
+
+  return JSON.stringify(exportObject);
+}
+
+export async function importAllData(jsonString: string): Promise<boolean> {
+  try {
+    const data = JSON.parse(jsonString);
+    if (!data.trips || !data.entries) throw new Error("Invalid backup file");
+
+    await saveTrips(data.trips);
+    await saveAllEntries(data.entries);
+    if (data.settings) await saveSettings(data.settings);
+    if (data.activeTripId !== undefined) await setActiveTripId(data.activeTripId);
+    if (data.packing) await savePackingCategories(data.packing);
+
+    // Write back documents
+    if (data.documentFiles) {
+      for (const [name, base64] of Object.entries(data.documentFiles)) {
+        try {
+          const uri = FileSystem.documentDirectory + encodeURIComponent(name);
+          await FileSystem.writeAsStringAsync(uri, base64 as string, { encoding: FileSystem.EncodingType.Base64 });
+        } catch (err) {
+          console.warn(`Failed to import document ${name}`, err);
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error importing data", error);
+    return false;
+  }
+}

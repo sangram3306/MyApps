@@ -19,6 +19,7 @@ import { Typography } from '../src/theme/typography';
 import { ENTRY_TYPE_META, ItineraryEntry, EntryType } from '../src/types';
 import { toLocalDateString } from '../src/utils/date';
 import * as Crypto from 'expo-crypto';
+import DocumentManager from '../src/components/DocumentManager';
 
 const ENTRY_TYPES: EntryType[] = ['flight', 'hotel', 'attraction', 'food', 'transport', 'other'];
 
@@ -90,6 +91,9 @@ export default function AddEntryScreen() {
   const [showTransportStartTime, setShowTransportStartTime] = useState(false);
   const [showTransportEndTime, setShowTransportEndTime] = useState(false);
 
+  // Documents state
+  const [documents, setDocuments] = useState<any[]>([]);
+
   const formatDateTime = (d: Date) => {
     return d.toLocaleDateString('en-US', {
       month: 'short', day: 'numeric'
@@ -131,6 +135,7 @@ export default function AddEntryScreen() {
       currency: params.currency || 'USD',
       notes: notes.trim(),
       createdAt: new Date().toISOString(),
+      documents,
       ...(type === 'flight' && {
         flightDetails: flightType === 'direct' ? {
           from: flightFrom.trim(),
@@ -747,6 +752,7 @@ export default function AddEntryScreen() {
               textAlignVertical="top"
             />
           </View>
+          <DocumentManager documents={documents} onChange={setDocuments} theme={theme} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

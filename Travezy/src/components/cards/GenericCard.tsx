@@ -6,6 +6,7 @@ import { Typography } from '../../theme/typography';
 import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
 import { OngoingHotelMeta } from '../../../app/(tabs)/itinerary';
+import DocumentPills from '../DocumentPills';
 
 interface GenericCardProps {
   entry: ItineraryEntry;
@@ -81,6 +82,7 @@ export default function GenericCard({
               {entry.notes}
             </Text>
           ) : <View />}
+          <DocumentPills documents={entry.documents} theme={theme} />
         </View>
 
         {showPrice !== false && entry.price > 0 && (

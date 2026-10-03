@@ -5,6 +5,7 @@ import { ItineraryEntry } from '../../types';
 import { Typography } from '../../theme/typography';
 import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
+import DocumentPills from '../DocumentPills';
 
 interface FlightCardProps {
   entry: ItineraryEntry;
@@ -139,6 +140,8 @@ export default function FlightCard({
             )}
           </View>
         )}
+
+        <DocumentPills documents={entry.documents} theme={theme} />
 
         {/* Expandable Layover Details */}
         {isConnecting && (

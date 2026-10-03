@@ -6,6 +6,7 @@ import { Typography } from '../../theme/typography';
 import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
 import { OngoingHotelMeta } from '../../../app/(tabs)/itinerary';
+import DocumentPills from '../DocumentPills';
 
 interface AttractionCardProps {
   entry: ItineraryEntry;
@@ -78,6 +79,7 @@ export default function AttractionCard({
               "{entry.notes}"
             </Text>
           ) : null}
+          <DocumentPills documents={entry.documents} theme={theme} />
         </View>
 
         <View style={{ alignItems: 'flex-end', justifyContent: 'flex-end' }}>
