@@ -177,7 +177,7 @@ export default function TripsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[Typography.h1, { color: colors.text }]}>Travezy</Text>
+          <Text style={[Typography.h1, { color: colors.text }]}>TripSP</Text>
           <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
             Your Travel Companion
           </Text>

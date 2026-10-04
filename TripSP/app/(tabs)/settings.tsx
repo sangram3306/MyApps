@@ -123,13 +123,13 @@ export default function SettingsScreen() {
     try {
       setIsProcessingData(true);
       const jsonString = await exportAllData();
-      const fileUri = FileSystem.cacheDirectory + 'TravezyBackup.travezy';
+      const fileUri = FileSystem.cacheDirectory + 'TripSPBackup.tripsp';
       await FileSystem.writeAsStringAsync(fileUri, jsonString);
       
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, {
           mimeType: 'application/json',
-          dialogTitle: 'Export Travezy Backup'
+          dialogTitle: 'Export TripSP Backup'
         });
       } else {
         Alert.alert('Error', 'Sharing is not available on this device');
