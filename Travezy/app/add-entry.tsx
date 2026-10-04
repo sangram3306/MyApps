@@ -752,7 +752,7 @@ export default function AddEntryScreen() {
               textAlignVertical="top"
             />
           </View>
-          <DocumentManager documents={documents} onChange={setDocuments} theme={theme} />
+          <DocumentManager documents={documents} onChange={setDocuments} theme={state.settings.theme} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

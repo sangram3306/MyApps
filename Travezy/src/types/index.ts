@@ -74,6 +74,12 @@ export interface AppSettings {
   selectedCurrencies: string[]; // up to 4 currencies
   theme: 'light' | 'dark';
   multiScreenItinerary?: boolean;
+  showCardImages?: {
+    city: boolean;
+    hotel: boolean;
+    attraction: boolean;
+  };
+  realtimeTimeline?: boolean;
 }
 
 // Currency info for display

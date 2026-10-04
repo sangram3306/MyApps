@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../../src/context/AppContext';
 import { Colors } from '../../src/theme/colors';
@@ -16,6 +16,9 @@ import { Typography } from '../../src/theme/typography';
 import { ItineraryEntry } from '../../src/types';
 import TimelineItem from '../../src/components/TimelineItem';
 import FAB from '../../src/components/FAB';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '../../src/storage/asyncStorage';
 
 export interface VirtualItineraryEntry {
   entry: ItineraryEntry;
@@ -26,6 +29,7 @@ export interface VirtualItineraryEntry {
   cityItemCount?: number;
   cityStartDateLabel?: string;
   cityEndDateLabel?: string;
+  isOngoingNow?: boolean;
 }
 
 export interface OngoingHotelMeta {
@@ -49,6 +53,75 @@ export default function ItineraryScreen() {
   const [collapsedHotels, setCollapsedHotels] = useState<Set<string>>(new Set());
   const [collapsedCities, setCollapsedCities] = useState<Set<string>>(new Set());
   const [showPrices, setShowPrices] = useState(true);
+  const [cityImageMap, setCityImageMap] = useState<Record<string, string>>({});
+  const [entryImageMap, setEntryImageMap] = useState<Record<string, string>>({});
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      getCityImages().then(setCityImageMap);
+      getEntryImages().then(setEntryImageMap);
+    }, [])
+  );
+
+  const launchCityPicker = async (tripId: string, cityName: string) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const key = `${tripId}::${cityName}`;
+      const fileName = `city_img_${encodeURIComponent(key)}.jpg`;
+      const newUri = FileSystem.documentDirectory + fileName;
+
+      try {
+        await FileSystem.copyAsync({ from: asset.uri, to: newUri });
+        const updated = { ...cityImageMap, [key]: newUri };
+        setCityImageMap(updated);
+        await saveCityImages(updated);
+      } catch (err) {
+        console.error('Failed to save city image', err);
+      }
+    }
+  };
+
+  const handlePickCityImage = useCallback(async (cityName: string) => {
+    const tripId = activeTrip?.id;
+    if (!tripId) return;
+
+    const key = `${tripId}::${cityName}`;
+    if (cityImageMap[key]) {
+      Alert.alert(
+        'Cover Photo',
+        'What would you like to do?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Remove Photo', 
+            style: 'destructive', 
+            onPress: async () => {
+              const updated = { ...cityImageMap };
+              delete updated[key];
+              setCityImageMap(updated);
+              await saveCityImages(updated);
+            }
+          },
+          { text: 'Change Photo', onPress: () => launchCityPicker(tripId, cityName) }
+        ]
+      );
+    } else {
+      launchCityPicker(tripId, cityName);
+    }
+  }, [activeTrip, cityImageMap]);
 
   const toggleCollapseHotel = (hotelId: string) => {
     setCollapsedHotels(prev => {
@@ -238,6 +311,32 @@ export default function ItineraryScreen() {
 
   // Re-sort with headers injected
   rawVirtualEntries.forEach(v => virtualEntries.push(v));
+
+  if (entries.length > 0 && state.settings.realtimeTimeline !== false) {
+    // Check if current time falls strictly within an ongoing activity
+    const overlappingActivity = virtualEntries.find(v => {
+      if (v.virtualType === 'city-header' || v.virtualType === 'check-in' || v.virtualType === 'check-out') return false;
+      const endT = getEntryEndTime(v);
+      return currentTime >= v.startTime && currentTime < endT; // < endT so it doesn't overlap on the exact end minute
+    });
+
+    if (overlappingActivity) {
+      overlappingActivity.isOngoingNow = true;
+    } else {
+      let currentCityForTime: string | undefined = undefined;
+      const block = cityBlocks.find(b => currentTime >= b.startTime && currentTime <= b.endTime);
+      if (block) currentCityForTime = block.blockName;
+
+      virtualEntries.push({
+        virtualType: 'current-time',
+        startTime: currentTime,
+        endTime: currentTime,
+        cityName: currentCityForTime,
+        entry: { id: 'current-time', tripId: activeTrip?.id || '', type: 'other', title: 'Current Time', date: new Date(currentTime).toISOString().split('T')[0], price: 0, currency: '', notes: '', createdAt: '' }
+      });
+    }
+  }
+
   virtualEntries.sort((a, b) => a.startTime - b.startTime);
 
   // --- Build active hotel stays indexed by hotel entry id ---
@@ -317,7 +416,7 @@ export default function ItineraryScreen() {
         // Reset lastDate so the first actual item in this block always shows the date badge
         lastDate = '';
       }
-    } else {
+    } else if (vEntry.virtualType !== 'current-time') {
       lastDate = localDateStr;
     }
 
@@ -397,6 +496,8 @@ export default function ItineraryScreen() {
       ? `${activityCount} ${activityCount === 1 ? 'activity' : 'activities'} hidden`
       : undefined;
 
+    const isCompleted = state.settings.realtimeTimeline !== false && vEntry.virtualType !== 'current-time' && getEntryEndTime(vEntry) < currentTime;
+
     return {
       vEntry,
       showDate,
@@ -407,6 +508,7 @@ export default function ItineraryScreen() {
       isCollapsible: isCheckIn,
       isCollapsed,
       collapsedSummary,
+      isCompleted,
     };
   });
 
@@ -607,11 +709,14 @@ export default function ItineraryScreen() {
                 dateLabel={item.dateLabel}
                 isFirst={item.index === 0}
                 isLast={item.index === virtualEntries.length - 1} // Global last
+                isCompleted={item.isCompleted}
                 gapText={item.gapText}
                 isCollapsible={item.vEntry.virtualType === 'city-header' ? true : item.isCollapsible}
                 isCollapsed={item.vEntry.virtualType === 'city-header' ? (state.settings.multiScreenItinerary || collapsedCities.has(item.vEntry.cityName!)) : item.isCollapsed}
                 isNavigable={item.vEntry.virtualType === 'city-header' && state.settings.multiScreenItinerary}
                 collapsedSummary={item.collapsedSummary}
+                isCurrentCity={item.vEntry.virtualType === 'city-header' ? (virtualEntries.some(v => v.virtualType === 'current-time' && v.cityName === item.vEntry.cityName) || virtualEntries.some(v => v.isOngoingNow && v.cityName === item.vEntry.cityName)) : false}
+                isOngoingNow={item.vEntry.isOngoingNow}
                 onToggleCollapse={() => {
                   if (item.vEntry.virtualType === 'city-header') {
                     if (state.settings.multiScreenItinerary) {
@@ -632,6 +737,9 @@ export default function ItineraryScreen() {
                 onPress={() => item.vEntry.virtualType !== 'city-header' && handleEntryPress(item.vEntry.entry)}
                 theme={state.settings.theme}
                 showPrice={showPrices}
+                cityImageUri={state.settings.showCardImages?.city !== false && item.vEntry.virtualType === 'city-header' && item.vEntry.cityName ? cityImageMap[`${activeTrip?.id}::${item.vEntry.cityName}`] : undefined}
+                onPickCityImage={item.vEntry.virtualType === 'city-header' && item.vEntry.cityName ? () => handlePickCityImage(item.vEntry.cityName!) : undefined}
+                entryImageUri={(item.vEntry.entry.type === 'hotel' || item.vEntry.entry.type === 'attraction') && state.settings.showCardImages?.[item.vEntry.entry.type] !== false ? entryImageMap[item.vEntry.entry.id] : undefined}
               />
             );
 

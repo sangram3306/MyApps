@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useApp } from '../src/context/AppContext';
 import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
 import { ItineraryEntry } from '../src/types';
 import TimelineItem from '../src/components/TimelineItem';
+import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '../src/storage/asyncStorage';
 
 // Re-use types from itinerary
 export interface VirtualItineraryEntry {
@@ -33,11 +36,83 @@ export default function CityDetailsScreen() {
 
   const [showPrices, setShowPrices] = useState(true);
   const [collapsedHotels, setCollapsedHotels] = useState<Set<string>>(new Set());
+  const [cityImageMap, setCityImageMap] = useState<Record<string, string>>({});
+  const [entryImageMap, setEntryImageMap] = useState<Record<string, string>>({});
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      getCityImages().then(setCityImageMap);
+      getEntryImages().then(setEntryImageMap);
+    }, [])
+  );
+
+  const launchCityPicker = async (tripId: string, cityName: string) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const key = `${tripId}::${cityName}`;
+      const fileName = `city_img_${encodeURIComponent(key)}.jpg`;
+      const newUri = FileSystem.documentDirectory + fileName;
+
+      try {
+        await FileSystem.copyAsync({ from: asset.uri, to: newUri });
+        const updated = { ...cityImageMap, [key]: newUri };
+        setCityImageMap(updated);
+        await saveCityImages(updated);
+      } catch (err) {
+        console.error('Failed to save city image', err);
+      }
+    }
+  };
+
+  const handlePickCityImage = useCallback(async () => {
+    const tripId = params.tripId as string;
+    const cityName = params.cityName as string;
+    if (!tripId || !cityName) return;
+
+    const key = `${tripId}::${cityName}`;
+    if (cityImageMap[key]) {
+      Alert.alert(
+        'Cover Photo',
+        'What would you like to do?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Remove Photo', 
+            style: 'destructive', 
+            onPress: async () => {
+              const updated = { ...cityImageMap };
+              delete updated[key];
+              setCityImageMap(updated);
+              await saveCityImages(updated);
+            }
+          },
+          { text: 'Change Photo', onPress: () => launchCityPicker(tripId, cityName) }
+        ]
+      );
+    } else {
+      launchCityPicker(tripId, cityName);
+    }
+  }, [params.tripId, params.cityName, cityImageMap]);
 
   const activeTrip = state.trips.find(t => t.id === params.tripId);
   const entries = state.entries
     .filter(e => e.tripId === params.tripId)
     .sort((a, b) => a.date.localeCompare(b.date));
+
+  const cityImageUri = cityImageMap[`${params.tripId}::${params.cityName}`];
 
   if (!activeTrip || !params.cityName) {
     return (
@@ -125,6 +200,30 @@ export default function CityDetailsScreen() {
 
   // --- Filter for this city ---
   const cityEntries = rawVirtualEntries.filter(v => v.cityName === params.cityName);
+  if (cityEntries.length > 0) {
+    const minT = cityEntries[0].startTime;
+    const maxT = cityEntries[cityEntries.length - 1].startTime + 86400000;
+    if (currentTime >= minT && currentTime <= maxT && state.settings.realtimeTimeline !== false) {
+      const overlappingActivity = cityEntries.find(v => {
+        if (v.virtualType === 'city-header' || v.virtualType === 'check-in' || v.virtualType === 'check-out') return false;
+        const endT = getEntryEndTime(v);
+        return currentTime >= v.startTime && currentTime < endT;
+      });
+
+      if (overlappingActivity) {
+        overlappingActivity.isOngoingNow = true;
+      } else {
+        cityEntries.push({
+          virtualType: 'current-time',
+          startTime: currentTime,
+          endTime: currentTime,
+          cityName: params.cityName as string,
+          entry: { id: 'current-time', tripId: (params.tripId as string) || '', type: 'other', title: 'Current Time', date: new Date(currentTime).toISOString().split('T')[0], price: 0, currency: '', notes: '', createdAt: '' }
+        });
+        cityEntries.sort((a, b) => a.startTime - b.startTime);
+      }
+    }
+  }
 
   // --- Build active hotel stays indexed by hotel entry id ---
   const hotelStays = new Map<string, { checkInTime: number; checkOutTime: number; meta: OngoingHotelMeta }>();
@@ -211,6 +310,8 @@ export default function CityDetailsScreen() {
     }
 
     if (!isHidden) {
+      const isCompleted = state.settings.realtimeTimeline !== false && vEntry.virtualType !== 'current-time' && getEntryEndTime(vEntry) < currentTime;
+
       renderableItems.push({
         index: renderableItems.length,
         vEntry,
@@ -220,7 +321,8 @@ export default function CityDetailsScreen() {
         gapText,
         isCollapsible: vEntry.virtualType === 'check-in',
         isCollapsed: collapsedHotels.has(vEntry.entry.id),
-        collapsedSummary
+        collapsedSummary,
+        isCompleted
       });
     }
   });
@@ -237,35 +339,85 @@ export default function CityDetailsScreen() {
   const handleEntryPress = (entry: ItineraryEntry) => {
     router.push({
       pathname: '/edit-entry',
-      params: { ...entry } as any
+      params: {
+        entryId: entry.id,
+        tripId: entry.tripId,
+        type: entry.type,
+        title: entry.title,
+        date: entry.date,
+        price: String(entry.price),
+        currency: entry.currency,
+        notes: entry.notes,
+      },
     });
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <TouchableOpacity onPress={() => router.back()} style={{ paddingRight: 16 }}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <View>
-            <Text style={[Typography.h1, { color: colors.text }]} numberOfLines={1}>
+      {cityImageUri ? (
+        <ImageBackground 
+          source={{ uri: cityImageUri }} 
+          style={{ width: '100%', minHeight: 200, justifyContent: 'space-between', paddingBottom: 16 }}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16 }}>
+            <TouchableOpacity onPress={() => router.back()} style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 20 }}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity
+                style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 20 }}
+                onPress={() => setShowPrices(!showPrices)}
+              >
+                <Ionicons name={showPrices ? "eye-off-outline" : "eye-outline"} size={20} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 20 }}
+                onPress={handlePickCityImage}
+              >
+                <Ionicons name="camera" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={{ paddingHorizontal: 16, marginTop: 60, backgroundColor: 'rgba(0,0,0,0.35)', paddingTop: 20, paddingBottom: 16 }}>
+            <Text style={[Typography.h1, { color: '#FFF', fontSize: 32, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }]} numberOfLines={1}>
               {params.cityName}
             </Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+            <Text style={[Typography.caption, { color: 'rgba(255,255,255,0.9)', marginTop: 4 }]}>
               {cityEntries.length} {cityEntries.length === 1 ? 'entry' : 'entries'} planned
             </Text>
           </View>
+        </ImageBackground>
+      ) : (
+        <View style={styles.header}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <TouchableOpacity onPress={() => router.back()} style={{ paddingRight: 16 }}>
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View>
+              <Text style={[Typography.h1, { color: colors.text }]} numberOfLines={1}>
+                {params.cityName}
+              </Text>
+              <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                {cityEntries.length} {cityEntries.length === 1 ? 'entry' : 'entries'} planned
+              </Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
+              onPress={() => setShowPrices(!showPrices)}
+            >
+              <Ionicons name={showPrices ? "eye-off-outline" : "eye-outline"} size={14} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
+              onPress={handlePickCityImage}
+            >
+              <Ionicons name="camera-outline" size={14} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
-            onPress={() => setShowPrices(!showPrices)}
-          >
-            <Ionicons name={showPrices ? "eye-off-outline" : "eye-outline"} size={14} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      )}
 
       <FlatList
         data={renderableItems}
@@ -283,14 +435,17 @@ export default function CityDetailsScreen() {
             dateLabel={item.dateLabel}
             isFirst={item.index === 0}
             isLast={item.index === renderableItems.length - 1}
+            isCompleted={item.isCompleted}
             gapText={item.gapText}
             isCollapsible={item.isCollapsible}
             isCollapsed={item.isCollapsed}
             collapsedSummary={item.collapsedSummary}
+            isOngoingNow={item.vEntry.isOngoingNow}
             onToggleCollapse={() => toggleCollapseHotel(item.vEntry.entry.id)}
             onPress={() => handleEntryPress(item.vEntry.entry)}
             theme={state.settings.theme}
             showPrice={showPrices}
+            entryImageUri={(item.vEntry.entry.type === 'hotel' || item.vEntry.entry.type === 'attraction') && state.settings.showCardImages?.[item.vEntry.entry.type] !== false ? entryImageMap[item.vEntry.entry.id] : undefined}
           />
         )}
       />

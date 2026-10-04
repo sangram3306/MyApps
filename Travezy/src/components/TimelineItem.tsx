@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ImageBackground } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ItineraryEntry, ENTRY_TYPE_META } from '../types';
 import { formatCurrency } from '../data/exchangeRates';
@@ -13,7 +13,7 @@ import GenericCard from './cards/GenericCard';
 
 interface TimelineItemProps {
   entry: ItineraryEntry;
-  virtualType?: 'check-in' | 'check-out' | 'city-header';
+  virtualType?: 'check-in' | 'check-out' | 'city-header' | 'current-time';
   cityName?: string;
   blockType?: 'city' | 'travel';
   cityItemCount?: number;
@@ -33,6 +33,12 @@ interface TimelineItemProps {
   onPress: () => void;
   theme: 'light' | 'dark';
   showPrice?: boolean;
+  cityImageUri?: string;
+  onPickCityImage?: () => void;
+  entryImageUri?: string;
+  onPickEntryImage?: () => void;
+  isCompleted?: boolean;
+  isCurrentCity?: boolean;
 }
 
 export default function TimelineItem({
@@ -57,6 +63,13 @@ export default function TimelineItem({
   onPress,
   theme,
   showPrice = true,
+  cityImageUri,
+  onPickCityImage,
+  entryImageUri,
+  onPickEntryImage,
+  isCompleted,
+  isCurrentCity,
+  isOngoingNow,
 }: TimelineItemProps) {
   const colors = Colors[theme];
   const hotelAccentColor = colors.primary;
@@ -147,36 +160,113 @@ export default function TimelineItem({
           <TouchableOpacity
             style={[
               styles.cityCard, 
-              { backgroundColor: isCollapsed ? colors.primary + '10' : 'transparent', borderColor: isCollapsed ? colors.primary + '30' : 'transparent', marginRight: 0 }
+              { 
+                backgroundColor: cityImageUri ? 'transparent' : (isCollapsed ? colors.primary + '10' : 'transparent'), 
+                borderColor: cityImageUri ? colors.primary + '40' : (isCollapsed ? colors.primary + '30' : 'transparent'), 
+                marginRight: 0,
+                minHeight: cityImageUri ? 160 : (isCollapsed ? 80 : undefined),
+                overflow: 'hidden',
+                padding: 0,
+              }
             ]}
             onPress={onToggleCollapse}
             activeOpacity={0.7}
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View>
-                <Text style={[Typography.h1, { color: colors.text, fontSize: isCollapsed ? 28 : 20 }]} numberOfLines={1}>
-                  {cityName}
-                </Text>
-                {!isCollapsed && (
-                  <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
-                    {cityItemCount} entries planned
-                  </Text>
-                )}
-              </View>
-              <TouchableOpacity
-                onPress={onToggleCollapse}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={[styles.collapseBtn, { backgroundColor: isCollapsed ? colors.primary + '20' : 'transparent' }]}
+            {isCurrentCity && isCollapsed && (
+              <View style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: colors.warning,
+                zIndex: 10,
+                shadowColor: colors.warning,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.8,
+                shadowRadius: 4,
+                elevation: 4,
+              }} />
+            )}
+            {cityImageUri ? (
+              <ImageBackground 
+                source={{ uri: cityImageUri }} 
+                style={{ width: '100%', height: '100%', minHeight: 160, justifyContent: 'flex-end' }}
+                imageStyle={{ borderRadius: 16 }}
               >
-                <Ionicons 
-                  name={isNavigable ? 'chevron-forward' : (isCollapsed ? 'chevron-down' : 'chevron-up')} 
-                  size={16} 
-                  color={isCollapsed || isNavigable ? colors.primary : colors.textSecondary} 
-                />
-              </TouchableOpacity>
-            </View>
+                <View style={styles.cityImageOverlay}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Typography.h1, { color: '#FFF', fontSize: 32, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }]} numberOfLines={1}>
+                      {cityName}
+                    </Text>
+                    <Text style={[Typography.caption, { color: 'rgba(255,255,255,0.85)', marginTop: 2 }]}>
+                      {cityItemCount} entries planned
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity
+                      onPress={onToggleCollapse}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={[styles.collapseBtn, { backgroundColor: 'rgba(255,255,255,0.2)' }]}
+                    >
+                      <Ionicons 
+                        name={isNavigable ? 'chevron-forward' : (isCollapsed ? 'chevron-down' : 'chevron-up')} 
+                        size={16} 
+                        color="#FFF" 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ImageBackground>
+            ) : (
+              <View style={{ padding: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[Typography.h1, { color: colors.text, fontSize: isCollapsed ? 28 : 20 }]} numberOfLines={1}>
+                      {cityName}
+                    </Text>
+                    {!isCollapsed && (
+                      <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
+                        {cityItemCount} entries planned
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TouchableOpacity
+                      onPress={onToggleCollapse}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      style={[styles.collapseBtn, { backgroundColor: isCollapsed ? colors.primary + '20' : 'transparent' }]}
+                    >
+                      <Ionicons 
+                        name={isNavigable ? 'chevron-forward' : (isCollapsed ? 'chevron-down' : 'chevron-up')} 
+                        size={16} 
+                        color={isCollapsed || isNavigable ? colors.primary : colors.textSecondary} 
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
+      </View>
+    );
+  }
+
+  if (virtualType === 'current-time') {
+    return (
+      <View style={[styles.container, { minHeight: 28, marginVertical: 0 }]}>
+        <View style={styles.dateColumn} />
+        <View style={styles.timelineColumn}>
+          {!isFirst && <View style={[styles.lineTop, { backgroundColor: colors.timelineLine, minHeight: 14 }]} />}
+          {isFirst && <View style={{ height: 14 }} />}
+          <View style={[styles.dot, { backgroundColor: colors.background, borderWidth: 2, borderColor: colors.warning, width: 14, height: 14, borderRadius: 7, marginTop: 0, marginBottom: 0 }]}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.warning }} />
+          </View>
+          {!isLast && <View style={[styles.lineBottom, { backgroundColor: colors.timelineLine }]} />}
+        </View>
+        <View style={{ flex: 1 }} />
       </View>
     );
   }
@@ -196,31 +286,21 @@ export default function TimelineItem({
 
       {/* Timeline Line + Dot */}
       <View style={styles.timelineColumn}>
-        {/* Thin accent line for hotel stay (replaces bold red line) */}
-        {!!ongoingHotel && (
-          <View
-            style={[
-              styles.ongoingLineWrapper,
-              { backgroundColor: hotelAccentColor },
-              virtualType === 'check-in' ? { top: '50%' } : null,
-              virtualType === 'check-out' ? { bottom: '50%' } : null,
-            ]}
-          />
-        )}
+        {!isFirst && <View style={[styles.lineTop, { backgroundColor: colors.timelineLine, minHeight: 38 }]} />}
+        
 
-        {!isFirst && (
-          <View style={[styles.lineTop, { backgroundColor: colors.timelineLine }]} />
-        )}
-        <View style={[styles.dot, { backgroundColor: meta.color, shadowColor: meta.color }]}>
-          <Ionicons name={meta.icon as any} size={12} color="#FFF" />
+
+        {isFirst && <View style={{ height: 38 }} />}
+        
+        <View style={[styles.dot, { backgroundColor: isCompleted ? colors.textMuted : meta.color, shadowColor: isCompleted ? colors.textMuted : meta.color, zIndex: 1 }]}>
+          <Ionicons name={(isCompleted ? "checkmark" : meta.icon) as any} size={12} color="#FFF" />
         </View>
-        {!isLast && (
-          <View style={[styles.lineBottom, { backgroundColor: colors.timelineLine }]} />
-        )}
+
+        {!isLast && <View style={[styles.lineBottom, { backgroundColor: colors.timelineLine }]} />}
       </View>
 
       {/* Entry Card Routing */}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, opacity: isCompleted ? 0.6 : 1 }}>
         {!!gapText && (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 6, marginRight: 16 }}>
             <View style={{ flex: 1, height: 1, backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border, opacity: 0.3 }} />
@@ -230,61 +310,83 @@ export default function TimelineItem({
             <View style={{ flex: 1, height: 1, backgroundColor: 'transparent', borderStyle: 'dashed', borderWidth: 1, borderColor: colors.border, opacity: 0.3 }} />
           </View>
         )}
-        {(() => {
-          if (entry.type === 'flight') {
+        <View style={{ position: 'relative' }}>
+          {isOngoingNow && (
+            <View style={{
+              position: 'absolute',
+              top: 12,
+              right: 28, // 16px from the card margin + 12px padding
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: colors.warning,
+              zIndex: 10,
+              shadowColor: colors.warning,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.8,
+              shadowRadius: 4,
+            }} />
+          )}
+          {(() => {
+            if (entry.type === 'flight') {
+              return (
+                <FlightCard
+                  entry={entry}
+                  meta={meta}
+                  colors={colors}
+                  theme={theme}
+                  onPress={onPress}
+                  showPrice={showPrice}
+                />
+              );
+            }
+            if (entry.type === 'hotel' || virtualType === 'check-in' || virtualType === 'check-out') {
+              return (
+                <HotelCard
+                  entry={entry}
+                  meta={meta}
+                  colors={colors}
+                  theme={theme}
+                  virtualType={virtualType}
+                  ongoingHotel={ongoingHotel}
+                  isCollapsed={isCollapsed}
+                  collapsedSummary={collapsedSummary}
+                  onPress={onPress}
+                  onToggleCollapse={onToggleCollapse}
+                  showPrice={showPrice}
+                  entryImageUri={entryImageUri}
+                  onPickEntryImage={onPickEntryImage}
+                />
+              );
+            }
+            if (entry.type === 'attraction') {
+              return (
+                <AttractionCard
+                  entry={entry}
+                  meta={meta}
+                  colors={colors}
+                  theme={theme}
+                  ongoingHotel={isActivityInStay ? ongoingHotel : undefined}
+                  onPress={onPress}
+                  showPrice={showPrice}
+                  entryImageUri={entryImageUri}
+                  onPickEntryImage={onPickEntryImage}
+                />
+              );
+            }
             return (
-              <FlightCard
+              <GenericCard
                 entry={entry}
                 meta={meta}
                 colors={colors}
                 theme={theme}
+                ongoingHotel={isActivityInStay ? ongoingHotel : undefined}
                 onPress={onPress}
                 showPrice={showPrice}
               />
             );
-          }
-          if (entry.type === 'hotel' || virtualType === 'check-in' || virtualType === 'check-out') {
-            return (
-              <HotelCard
-                entry={entry}
-                meta={meta}
-                colors={colors}
-                theme={theme}
-                virtualType={virtualType}
-                ongoingHotel={ongoingHotel}
-                isCollapsed={isCollapsed}
-                collapsedSummary={collapsedSummary}
-              onPress={onPress}
-              onToggleCollapse={onToggleCollapse}
-              showPrice={showPrice}
-            />
-          );
-        }
-        if (entry.type === 'attraction') {
-          return (
-            <AttractionCard
-              entry={entry}
-              meta={meta}
-              colors={colors}
-              theme={theme}
-              ongoingHotel={isActivityInStay ? ongoingHotel : undefined}
-              onPress={onPress}
-              showPrice={showPrice}
-            />
-          );
-        }
-        return (
-          <GenericCard
-            entry={entry}
-            meta={meta}
-            colors={colors}
-            theme={theme}
-            ongoingHotel={isActivityInStay ? ongoingHotel : undefined}
-            onPress={onPress}
-            showPrice={showPrice}
-          />
-        );
-      })()}
+          })()}
+      </View>
       </View>
     </View>
   );
@@ -310,15 +412,7 @@ const styles = StyleSheet.create({
     width: 46,
     alignItems: 'center',
   },
-  ongoingLineWrapper: {
-    position: 'absolute',
-    width: 1,
-    top: 0,
-    bottom: 0,
-    right: 8,
-    opacity: 0.3,
-    borderRadius: 1,
-  },
+
   lineTop: {
     width: 2,
     minHeight: 24,
@@ -371,5 +465,15 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
+  },
+  cityImageOverlay: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    padding: 16,
+    paddingTop: 40,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
 });

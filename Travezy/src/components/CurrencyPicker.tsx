@@ -146,7 +146,7 @@ export default function CurrencyPicker({
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  overlay: { // Force rebuild
     flex: 1,
     justifyContent: 'flex-end',
   },

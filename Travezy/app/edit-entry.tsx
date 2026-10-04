@@ -9,9 +9,12 @@ import {
   Platform,
   KeyboardAvoidingView,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../src/context/AppContext';
@@ -20,6 +23,7 @@ import { Typography } from '../src/theme/typography';
 import { EntryType, ENTRY_TYPE_META } from '../src/types';
 import { toLocalDateString } from '../src/utils/date';
 import DocumentManager from '../src/components/DocumentManager';
+import { getEntryImages, saveEntryImages } from '../src/storage/asyncStorage';
 
 const ENTRY_TYPES: EntryType[] = ['flight', 'hotel', 'attraction', 'food', 'transport', 'other'];
 
@@ -45,6 +49,65 @@ export default function EditEntryScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [price, setPrice] = useState(params.price || '');
   const [notes, setNotes] = useState(params.notes || '');
+  const [entryImageUri, setEntryImageUri] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    getEntryImages().then(map => {
+      if (params.entryId && map[params.entryId]) {
+        setEntryImageUri(map[params.entryId]);
+      }
+    });
+  }, [params.entryId]);
+
+  const launchPicker = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      const fileName = `entry_img_${encodeURIComponent(params.entryId!)}.jpg`;
+      const newUri = FileSystem.documentDirectory + fileName;
+
+      try {
+        await FileSystem.copyAsync({ from: asset.uri, to: newUri });
+        setEntryImageUri(newUri);
+        const map = await getEntryImages();
+        map[params.entryId!] = newUri;
+        await saveEntryImages(map);
+      } catch (err) {
+        console.error('Failed to save entry image', err);
+      }
+    }
+  };
+
+  const handlePickImage = () => {
+    if (entryImageUri) {
+      Alert.alert(
+        'Cover Photo',
+        'What would you like to do?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Remove Photo', 
+            style: 'destructive', 
+            onPress: async () => {
+              setEntryImageUri(null);
+              const map = await getEntryImages();
+              delete map[params.entryId!];
+              await saveEntryImages(map);
+            }
+          },
+          { text: 'Change Photo', onPress: launchPicker }
+        ]
+      );
+    } else {
+      launchPicker();
+    }
+  };
 
   const existingEntry = state.entries.find(e => e.id === params.entryId);
   
@@ -136,6 +199,59 @@ export default function EditEntryScreen() {
       year: 'numeric',
     });
   };
+
+  React.useEffect(() => {
+    if (existingEntry && !isEditing) {
+      setType(existingEntry.type);
+      setTitle(existingEntry.title || '');
+      setDate(new Date(existingEntry.date + 'T00:00:00' || new Date()));
+      setPrice(String(existingEntry.price || ''));
+      setNotes(existingEntry.notes || '');
+      setDocuments(existingEntry.documents || []);
+
+      if (existingEntry.flightDetails) {
+        setFlightType(existingEntry.flightDetails.isConnecting ? 'connecting' : 'direct');
+        setFlightFrom(existingEntry.flightDetails.from || '');
+        setFlightTo(existingEntry.flightDetails.to || '');
+        setFlightName(existingEntry.flightDetails.flightName || '');
+        setFlightCategory(existingEntry.flightDetails.flightType || 'domestic');
+        setDepartureTerminal(existingEntry.flightDetails.departureTerminal || '');
+        setArrivalTerminal(existingEntry.flightDetails.arrivalTerminal || '');
+        if (existingEntry.flightDetails.departureTime) setDepartureDateTime(new Date(existingEntry.flightDetails.departureTime));
+        if (existingEntry.flightDetails.arrivalTime) setArrivalDateTime(new Date(existingEntry.flightDetails.arrivalTime));
+        
+        if (existingEntry.flightDetails.connections) {
+          setConnections(existingEntry.flightDetails.connections.map(c => ({
+            from: c.from,
+            to: c.to,
+            departureTime: new Date(c.departureTime),
+            arrivalTime: new Date(c.arrivalTime),
+            flightName: c.flightName || '',
+            departureTerminal: c.departureTerminal || '',
+            arrivalTerminal: c.arrivalTerminal || ''
+          })));
+        }
+      }
+
+      if (existingEntry.hotelDetails) {
+        setHotelName(existingEntry.hotelDetails.name || '');
+        setHotelAddress(existingEntry.hotelDetails.address || '');
+        setHotelCity(existingEntry.hotelDetails.city || '');
+        if (existingEntry.hotelDetails.checkInTime) setCheckInDateTime(new Date(existingEntry.hotelDetails.checkInTime));
+        if (existingEntry.hotelDetails.checkOutTime) setCheckOutDateTime(new Date(existingEntry.hotelDetails.checkOutTime));
+      }
+
+      if (existingEntry.attractionDetails) {
+        if (existingEntry.attractionDetails.startTime) setAttractionStartTime(new Date(existingEntry.attractionDetails.startTime));
+        if (existingEntry.attractionDetails.endTime) setAttractionEndTime(new Date(existingEntry.attractionDetails.endTime));
+      }
+
+      if (existingEntry.transportDetails) {
+        if (existingEntry.transportDetails.startTime) setTransportStartTime(new Date(existingEntry.transportDetails.startTime));
+        if (existingEntry.transportDetails.endTime) setTransportEndTime(new Date(existingEntry.transportDetails.endTime));
+      }
+    }
+  }, [existingEntry, isEditing]);
 
   const handleSave = async () => {
     let finalTitle = title.trim();
@@ -236,24 +352,84 @@ export default function EditEntryScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="close" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={[Typography.h3, { color: colors.text }]}>{isEditing ? 'Edit Entry' : 'View Entry'}</Text>
-          {isEditing ? (
-            <TouchableOpacity onPress={handleSave}>
-              <Text style={[Typography.button, { color: colors.primary }]}>Save</Text>
+        {(type === 'hotel' || type === 'attraction') ? (
+          <View style={{ width: '100%', height: 260 }}>
+            {entryImageUri ? (
+              <ImageBackground 
+                source={{ uri: entryImageUri }} 
+                style={{ width: '100%', height: '100%', justifyContent: 'space-between', paddingBottom: 16 }}
+                imageStyle={{ resizeMode: 'cover' }}
+              >
+                <View style={[styles.header, { backgroundColor: 'transparent' }]}>
+                  <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="close" size={24} color="#FFF" style={{ textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }} />
+                  </TouchableOpacity>
+                  <Text style={[Typography.h3, { color: '#FFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }]}>{isEditing ? 'Edit Entry' : 'View Entry'}</Text>
+                  {isEditing ? (
+                    <TouchableOpacity onPress={handleSave}>
+                      <Text style={[Typography.button, { color: '#FFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }]}>Save</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => setIsEditing(true)}>
+                      <Text style={[Typography.button, { color: '#FFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }]}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={{ backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20, alignSelf: 'flex-end', marginRight: 16 }}
+                  onPress={handlePickImage}
+                >
+                  <Ionicons name="camera" size={24} color="#FFF" />
+                </TouchableOpacity>
+              </ImageBackground>
+            ) : (
+              <View style={{ width: '100%', height: '100%', backgroundColor: colors.primary + '10', justifyContent: 'space-between' }}>
+                <View style={[styles.header, { backgroundColor: 'transparent' }]}>
+                  <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                  <Text style={[Typography.h3, { color: colors.text }]}>{isEditing ? 'Edit Entry' : 'View Entry'}</Text>
+                  {isEditing ? (
+                    <TouchableOpacity onPress={handleSave}>
+                      <Text style={[Typography.button, { color: colors.primary }]}>Save</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => setIsEditing(true)}>
+                      <Text style={[Typography.button, { color: colors.primary }]}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <View style={{ alignItems: 'center', paddingBottom: 36 }}>
+                  <TouchableOpacity
+                    style={{ backgroundColor: colors.primary + '20', padding: 16, borderRadius: 30, alignItems: 'center' }}
+                    onPress={handlePickImage}
+                  >
+                    <Ionicons name="camera-outline" size={32} color={colors.primary} />
+                    <Text style={[Typography.captionSemibold, { color: colors.primary, marginTop: 8 }]}>Add Cover Photo</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => setIsEditing(true)}>
-              <Text style={[Typography.button, { color: colors.primary }]}>Edit</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            <Text style={[Typography.h3, { color: colors.text }]}>{isEditing ? 'Edit Entry' : 'View Entry'}</Text>
+            {isEditing ? (
+              <TouchableOpacity onPress={handleSave}>
+                <Text style={[Typography.button, { color: colors.primary }]}>Save</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => setIsEditing(true)}>
+                <Text style={[Typography.button, { color: colors.primary }]}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 20 }}>
 
 
           {/* Title (Hidden for flight/hotel) */}

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, ReactNode } fr
 import { Trip, ItineraryEntry, AppSettings, ExchangeRates, PackingCategory } from '../types';
 import * as Storage from '../storage/asyncStorage';
 import { getExchangeRates, fetchAndCacheRates, saveExchangeRates } from '../data/exchangeRates';
+import * as Crypto from 'expo-crypto';
 
 // ─── State ──────────────────────────────────────────
 
@@ -25,6 +26,8 @@ const initialState: AppState = {
     selectedCurrencies: ['USD', 'EUR', 'GBP'],
     theme: 'dark',
     multiScreenItinerary: false,
+    showCardImages: { city: true, hotel: true, attraction: true },
+    realtimeTimeline: true,
   },
   exchangeRates: {
     base: 'USD',
@@ -104,6 +107,7 @@ interface AppContextType {
   state: AppState;
   addTrip: (trip: Trip) => Promise<void>;
   updateTrip: (trip: Trip) => Promise<void>;
+  duplicateTrip: (tripId: string) => Promise<void>;
   deleteTrip: (tripId: string) => Promise<void>;
   setActiveTrip: (tripId: string | null) => Promise<void>;
   addEntry: (entry: ItineraryEntry) => Promise<void>;
@@ -159,6 +163,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateTrip = async (trip: Trip) => {
     await Storage.updateTrip(trip);
     dispatch({ type: 'UPDATE_TRIP', payload: trip });
+  };
+
+  const duplicateTrip = async (tripId: string) => {
+    const tripToDuplicate = state.trips.find(t => t.id === tripId);
+    if (!tripToDuplicate) return;
+
+    const newTripId = Crypto.randomUUID();
+    const newTrip: Trip = {
+      ...tripToDuplicate,
+      id: newTripId,
+      name: `Copy of ${tripToDuplicate.name}`,
+      createdAt: new Date().toISOString(),
+      status: undefined, // Reset status
+    };
+
+    const entriesToDuplicate = state.entries.filter(e => e.tripId === tripId);
+    
+    // Create new entries sequentially (or all together)
+    await Storage.addTrip(newTrip);
+    dispatch({ type: 'ADD_TRIP', payload: newTrip });
+
+    for (const entry of entriesToDuplicate) {
+      const newEntry: ItineraryEntry = {
+        ...entry,
+        id: Crypto.randomUUID(),
+        tripId: newTripId,
+        createdAt: new Date().toISOString(),
+      };
+      await Storage.addEntry(newEntry);
+      dispatch({ type: 'ADD_ENTRY', payload: newEntry });
+    }
   };
 
   const deleteTrip = async (tripId: string) => {
@@ -237,6 +272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         state,
         addTrip,
         updateTrip,
+        duplicateTrip,
         deleteTrip,
         setActiveTrip,
         addEntry,

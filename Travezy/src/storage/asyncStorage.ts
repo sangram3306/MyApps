@@ -19,6 +19,8 @@ const FILE_NAMES = {
   SETTINGS: 'settings.json',
   ACTIVE_TRIP: 'active_trip.json',
   PACKING: 'packing.json',
+  CITY_IMAGES: 'city_images.json',
+  ENTRY_IMAGES: 'entry_images.json',
 };
 
 // Default settings
@@ -27,6 +29,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   selectedCurrencies: ['USD', 'EUR', 'GBP'],
   theme: 'dark',
   multiScreenItinerary: false,
+  showCardImages: { city: true, hotel: true, attraction: true },
 };
 
 // ─── File Helpers ───────────────────────────────────
@@ -157,6 +160,28 @@ export async function savePackingCategories(categories: PackingCategory[]): Prom
   await writeJSON(FILE_NAMES.PACKING, categories);
 }
 
+// ─── City Images ────────────────────────────────────
+// Key format: "tripId::cityName" => uri string
+
+export async function getCityImages(): Promise<Record<string, string>> {
+  return readJSON<Record<string, string>>(FILE_NAMES.CITY_IMAGES, {});
+}
+
+export async function saveCityImages(images: Record<string, string>): Promise<void> {
+  await writeJSON(FILE_NAMES.CITY_IMAGES, images);
+}
+
+// ─── Entry Images ───────────────────────────────────
+// Key format: "entryId" => uri string
+
+export async function getEntryImages(): Promise<Record<string, string>> {
+  return readJSON<Record<string, string>>(FILE_NAMES.ENTRY_IMAGES, {});
+}
+
+export async function saveEntryImages(images: Record<string, string>): Promise<void> {
+  await writeJSON(FILE_NAMES.ENTRY_IMAGES, images);
+}
+
 // ─── Export & Import ────────────────────────────────
 
 export async function exportAllData(): Promise<string> {
@@ -184,6 +209,36 @@ export async function exportAllData(): Promise<string> {
     }
   }
 
+  // Read city images and encode to base64
+  const cityImages = await getCityImages();
+  const cityImageFiles: Record<string, string> = {};
+  for (const [key, uri] of Object.entries(cityImages)) {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (fileInfo.exists) {
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        cityImageFiles[key] = base64;
+      }
+    } catch (error) {
+      console.warn(`Failed to export city image ${key}`, error);
+    }
+  }
+
+  // Read entry images and encode to base64
+  const entryImages = await getEntryImages();
+  const entryImageFiles: Record<string, string> = {};
+  for (const [key, uri] of Object.entries(entryImages)) {
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      if (fileInfo.exists) {
+        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+        entryImageFiles[key] = base64;
+      }
+    } catch (error) {
+      console.warn(`Failed to export entry image ${key}`, error);
+    }
+  }
+
   const exportObject = {
     trips,
     entries,
@@ -191,6 +246,8 @@ export async function exportAllData(): Promise<string> {
     activeTripId,
     packing,
     documentFiles,
+    cityImageFiles,
+    entryImageFiles,
   };
 
   return JSON.stringify(exportObject);
@@ -217,6 +274,36 @@ export async function importAllData(jsonString: string): Promise<boolean> {
           console.warn(`Failed to import document ${name}`, err);
         }
       }
+    }
+
+    // Write back city images
+    if (data.cityImageFiles) {
+      const restoredCityImages: Record<string, string> = {};
+      for (const [key, base64] of Object.entries(data.cityImageFiles)) {
+        try {
+          const uri = FileSystem.documentDirectory + `city_img_${encodeURIComponent(key)}.jpg`;
+          await FileSystem.writeAsStringAsync(uri, base64 as string, { encoding: FileSystem.EncodingType.Base64 });
+          restoredCityImages[key] = uri;
+        } catch (err) {
+          console.warn(`Failed to import city image ${key}`, err);
+        }
+      }
+      await saveCityImages(restoredCityImages);
+    }
+
+    // Write back entry images
+    if (data.entryImageFiles) {
+      const restoredEntryImages: Record<string, string> = {};
+      for (const [key, base64] of Object.entries(data.entryImageFiles)) {
+        try {
+          const uri = FileSystem.documentDirectory + `entry_img_${encodeURIComponent(key)}.jpg`;
+          await FileSystem.writeAsStringAsync(uri, base64 as string, { encoding: FileSystem.EncodingType.Base64 });
+          restoredEntryImages[key] = uri;
+        } catch (err) {
+          console.warn(`Failed to import entry image ${key}`, err);
+        }
+      }
+      await saveEntryImages(restoredEntryImages);
     }
 
     return true;

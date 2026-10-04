@@ -117,6 +117,7 @@ export default function SettingsScreen() {
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [editingCurrencyIndex, setEditingCurrencyIndex] = useState<number | null>(null);
   const [isProcessingData, setIsProcessingData] = useState(false);
+  const [showImagesExpanded, setShowImagesExpanded] = useState(false);
 
   const handleExportData = async () => {
     try {
@@ -273,6 +274,91 @@ export default function SettingsScreen() {
               thumbColor={state.settings.multiScreenItinerary ? colors.primary : colors.textMuted}
             />
           </View>
+          
+          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.warning + '20' }]}>
+                <Ionicons name="time-outline" size={18} color={colors.warning} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Real-time Timeline Flow</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Show current time marker & auto-dim past items
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={state.settings.realtimeTimeline ?? true}
+              onValueChange={(value) => updateSettings({ realtimeTimeline: value })}
+              trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+              thumbColor={(state.settings.realtimeTimeline ?? true) ? colors.primary : colors.textMuted}
+            />
+          </View>
+
+          {/* Show Card Images Group */}
+          <TouchableOpacity
+            style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}
+            onPress={() => setShowImagesExpanded(!showImagesExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="images-outline" size={18} color={colors.accent} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Show Cover Images</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Manage image visibility on timeline
+                </Text>
+              </View>
+            </View>
+            <Ionicons
+              name={showImagesExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.textMuted}
+            />
+          </TouchableOpacity>
+
+          {showImagesExpanded && (
+            <View style={{ 
+              backgroundColor: state.settings.theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', 
+              paddingVertical: 12, 
+              paddingHorizontal: 24, 
+              flexDirection: 'row', 
+              justifyContent: 'space-between' 
+            }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[Typography.caption, { color: colors.text, marginBottom: 6 }]}>City</Text>
+                <Switch
+                  value={state.settings.showCardImages?.city ?? true}
+                  onValueChange={(value) => updateSettings({ showCardImages: { ...(state.settings.showCardImages || { city: true, hotel: true, attraction: true }), city: value } })}
+                  trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+                  thumbColor={state.settings.showCardImages?.city !== false ? colors.primary : colors.textMuted}
+                  style={{ transform: [{ scale: 0.8 }] }}
+                />
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[Typography.caption, { color: colors.text, marginBottom: 6 }]}>Hotel</Text>
+                <Switch
+                  value={state.settings.showCardImages?.hotel ?? true}
+                  onValueChange={(value) => updateSettings({ showCardImages: { ...(state.settings.showCardImages || { city: true, hotel: true, attraction: true }), hotel: value } })}
+                  trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+                  thumbColor={state.settings.showCardImages?.hotel !== false ? colors.primary : colors.textMuted}
+                  style={{ transform: [{ scale: 0.8 }] }}
+                />
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={[Typography.caption, { color: colors.text, marginBottom: 6 }]}>Attraction</Text>
+                <Switch
+                  value={state.settings.showCardImages?.attraction ?? true}
+                  onValueChange={(value) => updateSettings({ showCardImages: { ...(state.settings.showCardImages || { city: true, hotel: true, attraction: true }), attraction: value } })}
+                  trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+                  thumbColor={state.settings.showCardImages?.attraction !== false ? colors.primary : colors.textMuted}
+                  style={{ transform: [{ scale: 0.8 }] }}
+                />
+              </View>
+            </View>
+          )}
         </View>
 
                 {/* Currency Section */}
@@ -370,6 +456,31 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Exchange Rate Info */}
+        <View style={[styles.rateInfoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="trending-up" size={18} color={colors.accent} />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Text style={[Typography.captionMedium, { color: colors.text }]}>
+              Exchange Rates
+            </Text>
+            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+              Last updated: {state.exchangeRates.date}
+              {state.settings.offlineMode ? ' (using cached rates)' : ''}
+            </Text>
+          </View>
+        </View>
+
+        {/* Manual Rates Editor (Offline Mode) */}
+        {state.settings.offlineMode && state.settings.selectedCurrencies.length > 1 && (
+          <OfflineRatesEditor
+            colors={colors}
+            primaryCurrency={state.settings.selectedCurrencies[0]}
+            secondaryCurrencies={state.settings.selectedCurrencies.slice(1)}
+            rates={state.exchangeRates.rates}
+            updateRates={updateExchangeRates}
+          />
+        )}
+
         {/* About Section */}
         <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
           About
@@ -401,69 +512,6 @@ export default function SettingsScreen() {
             </View>
           </View>
         </View>
-
-        {/* Data Management Section */}
-        <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
-          Data Management
-        </Text>
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          
-          <TouchableOpacity style={[styles.row, { borderBottomColor: colors.borderLight }]} onPress={handleExportData} disabled={isProcessingData}>
-            <View style={styles.rowLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
-                <Ionicons name="cloud-upload-outline" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Export Backup</Text>
-                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                  Save all data and documents to a file
-                </Text>
-              </View>
-            </View>
-            {isProcessingData ? <ActivityIndicator color={colors.primary} size="small" /> : <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.row} onPress={handleImportData} disabled={isProcessingData}>
-            <View style={styles.rowLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: colors.accent + '20' }]}>
-                <Ionicons name="cloud-download-outline" size={18} color={colors.accent} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Import Backup</Text>
-                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                  Restore data from a backup file
-                </Text>
-              </View>
-            </View>
-            {isProcessingData ? <ActivityIndicator color={colors.accent} size="small" /> : <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />}
-          </TouchableOpacity>
-
-        </View>
-
-        {/* Exchange Rate Info */}
-        <View style={[styles.rateInfoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="trending-up" size={18} color={colors.accent} />
-          <View style={{ marginLeft: 12, flex: 1 }}>
-            <Text style={[Typography.captionMedium, { color: colors.text }]}>
-              Exchange Rates
-            </Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-              Last updated: {state.exchangeRates.date}
-              {state.settings.offlineMode ? ' (using cached rates)' : ''}
-            </Text>
-          </View>
-        </View>
-
-        {/* Manual Rates Editor (Offline Mode) */}
-        {state.settings.offlineMode && state.settings.selectedCurrencies.length > 1 && (
-          <OfflineRatesEditor
-            colors={colors}
-            primaryCurrency={state.settings.selectedCurrencies[0]}
-            secondaryCurrencies={state.settings.selectedCurrencies.slice(1)}
-            rates={state.exchangeRates.rates}
-            updateRates={updateExchangeRates}
-          />
-        )}
   
       </ScrollView>
       </KeyboardAvoidingView>
