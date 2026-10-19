@@ -578,11 +578,6 @@ export default function FinancialsScreen() {
               })}
           </View>
         )}
-
-        {/* Rate info */}
-        <Text style={[Typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: 16, paddingHorizontal: 20 }]}>
-          Exchange rates as of {state.exchangeRates.date}
-        </Text>
       </ScrollView>
 
       {/* Add Expense Modal (Food, Shopping, Grocery, Others + Custom Categories) */}

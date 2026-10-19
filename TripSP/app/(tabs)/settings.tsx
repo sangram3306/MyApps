@@ -693,19 +693,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Exchange Rate Info */}
-        <View style={[styles.rateInfoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Ionicons name="trending-up" size={18} color={colors.accent} />
-          <View style={{ marginLeft: 12, flex: 1 }}>
-            <Text style={[Typography.captionMedium, { color: colors.text }]}>
-              Exchange Rates
-            </Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-              Last updated: {state.exchangeRates.date}
-            </Text>
-          </View>
-        </View>
-
         {/* Manual Rates Editor */}
         {state.settings.selectedCurrencies.length > 1 && (
           <OfflineRatesEditor
@@ -868,14 +855,5 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 14,
     borderRadius: 14,
-  },
-  rateInfoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 24,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 1,
   },
 });
