@@ -23,6 +23,8 @@ import { Typography } from '../../src/theme/typography';
 import { CURRENCIES } from '../../src/data/exchangeRates';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
 import { exportAllData, importAllData } from '../../src/storage/asyncStorage';
+import EmergencyModal from '../../src/components/EmergencyModal';
+import { requestNotificationPermissions } from '../../src/utils/notifications';
 
 
 function OfflineRatesEditor({
@@ -118,6 +120,7 @@ export default function SettingsScreen() {
   const [editingCurrencyIndex, setEditingCurrencyIndex] = useState<number | null>(null);
   const [isProcessingData, setIsProcessingData] = useState(false);
   const [showImagesExpanded, setShowImagesExpanded] = useState(false);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
   const handleExportData = async () => {
     try {
@@ -393,7 +396,173 @@ export default function SettingsScreen() {
           )}
         </View>
 
-                {/* Currency Section */}
+        {/* Travel Alerts & Reminders Section */}
+        <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
+          Travel Alerts & Reminders
+        </Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={[styles.row, { borderBottomColor: (state.settings.notificationSettings?.enabled ?? true) ? colors.borderLight : 'transparent' }]}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Offline Trip Notifications</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Local scheduled device alarms
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={state.settings.notificationSettings?.enabled ?? true}
+              onValueChange={async (value) => {
+                if (value) {
+                  await requestNotificationPermissions();
+                }
+                updateSettings({
+                  notificationSettings: {
+                    ...(state.settings.notificationSettings || {
+                      enabled: true,
+                      flightReminders: true,
+                      hotelReminders: true,
+                      activityReminders: true,
+                    }),
+                    enabled: value,
+                  },
+                });
+              }}
+              trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+              thumbColor={(state.settings.notificationSettings?.enabled ?? true) ? colors.primary : colors.textMuted}
+            />
+          </View>
+
+          {(state.settings.notificationSettings?.enabled ?? true) && (
+            <>
+              <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.flight + '20' }]}>
+                    <Ionicons name="airplane-outline" size={18} color={colors.flight} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={[Typography.bodyMedium, { color: colors.text }]}>Flight Departure Alert</Text>
+                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                      3 hours before flight departure
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={state.settings.notificationSettings?.flightReminders ?? true}
+                  onValueChange={(val) =>
+                    updateSettings({
+                      notificationSettings: {
+                        ...(state.settings.notificationSettings || {
+                          enabled: true,
+                          flightReminders: true,
+                          hotelReminders: true,
+                          activityReminders: true,
+                        }),
+                        flightReminders: val,
+                      },
+                    })
+                  }
+                  trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+                  thumbColor={(state.settings.notificationSettings?.flightReminders ?? true) ? colors.primary : colors.textMuted}
+                />
+              </View>
+
+              <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.hotel + '20' }]}>
+                    <Ionicons name="bed-outline" size={18} color={colors.hotel} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={[Typography.bodyMedium, { color: colors.text }]}>Hotel Checkout Alert</Text>
+                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                      1 hour before scheduled checkout
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={state.settings.notificationSettings?.hotelReminders ?? true}
+                  onValueChange={(val) =>
+                    updateSettings({
+                      notificationSettings: {
+                        ...(state.settings.notificationSettings || {
+                          enabled: true,
+                          flightReminders: true,
+                          hotelReminders: true,
+                          activityReminders: true,
+                        }),
+                        hotelReminders: val,
+                      },
+                    })
+                  }
+                  trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+                  thumbColor={(state.settings.notificationSettings?.hotelReminders ?? true) ? colors.primary : colors.textMuted}
+                />
+              </View>
+
+              <View style={[styles.row, { borderBottomColor: 'transparent' }]}>
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.attraction + '20' }]}>
+                    <Ionicons name="ticket-outline" size={18} color={colors.attraction} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={[Typography.bodyMedium, { color: colors.text }]}>Activity & Attraction Alert</Text>
+                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                      30 minutes before booking start
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={state.settings.notificationSettings?.activityReminders ?? true}
+                  onValueChange={(val) =>
+                    updateSettings({
+                      notificationSettings: {
+                        ...(state.settings.notificationSettings || {
+                          enabled: true,
+                          flightReminders: true,
+                          hotelReminders: true,
+                          activityReminders: true,
+                        }),
+                        activityReminders: val,
+                      },
+                    })
+                  }
+                  trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+                  thumbColor={(state.settings.notificationSettings?.activityReminders ?? true) ? colors.primary : colors.textMuted}
+                />
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Safety & Emergencies Section */}
+        <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
+          Safety & Emergencies
+        </Text>
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => setShowEmergencyModal(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.error + '20' }]}>
+                <Ionicons name="shield-checkmark" size={18} color={colors.error} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Emergency Numbers Directory</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Offline police, ambulance & fire rescue hotlines
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Currency Section */}
         <Text style={[Typography.label, styles.sectionLabel, { color: colors.textMuted }]}>
           Display Currencies
         </Text>
@@ -621,6 +790,14 @@ export default function SettingsScreen() {
           setShowCurrencyPicker(false);
           setEditingCurrencyIndex(null);
         }}
+        theme={state.settings.theme}
+      />
+
+      <EmergencyModal
+        visible={showEmergencyModal}
+        onClose={() => setShowEmergencyModal(false)}
+        tripName={state.trips.find((t) => t.id === state.activeTripId)?.name}
+        showAllCountries={true}
         theme={state.settings.theme}
       />
     </SafeAreaView>

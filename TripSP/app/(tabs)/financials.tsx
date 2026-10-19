@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DualModeDatePickerModal from '../../src/components/DualModeDatePickerModal';
+import QuickCurrencyCalcModal from '../../src/components/QuickCurrencyCalcModal';
 import * as Crypto from 'expo-crypto';
 import { useApp } from '../../src/context/AppContext';
 import { Colors } from '../../src/theme/colors';
@@ -109,6 +110,7 @@ export default function FinancialsScreen() {
 
   // Add Expense Modal state
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+  const [showQuickCalc, setShowQuickCalc] = useState(false);
   const [expenseType, setExpenseType] = useState<string>('food');
   const [expenseTitle, setExpenseTitle] = useState('');
   const [expensePrice, setExpensePrice] = useState('');
@@ -365,28 +367,46 @@ export default function FinancialsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Header with subtle Add Expense button */}
         <View style={styles.header}>
-          <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={[Typography.h1, { color: colors.text }]}>Financials</Text>
-            <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+          <View style={{ flex: 1, marginRight: 10, justifyContent: 'center' }}>
+            <Text style={[Typography.h1, { color: colors.text }]} numberOfLines={1}>
+              Financials
+            </Text>
+            <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]} numberOfLines={1}>
               {activeTrip.name}
             </Text>
           </View>
-          <TouchableOpacity
-            style={[
-              styles.subtleAddBtn,
-              {
-                backgroundColor: colors.primary + '15',
-                borderColor: colors.primary + '35',
-              },
-            ]}
-            onPress={() => openExpenseModal('food')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="add" size={15} color={colors.primary} />
-            <Text style={[Typography.captionSemibold, { color: colors.primary, marginLeft: 4, fontSize: 13 }]}>
-              Add Expense
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <TouchableOpacity
+              style={[
+                styles.headerActionBtn,
+                {
+                  backgroundColor: colors.surfaceElevated,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => setShowQuickCalc(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="calculator-outline" size={18} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.subtleAddBtn,
+                {
+                  backgroundColor: colors.primary + '15',
+                  borderColor: colors.primary + '35',
+                },
+              ]}
+              onPress={() => openExpenseModal('food')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add" size={16} color={colors.primary} />
+              <Text style={[Typography.captionSemibold, { color: colors.primary, marginLeft: 4, fontSize: 13 }]}>
+                Add Expense
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Total Spend Card */}
@@ -972,6 +992,16 @@ export default function FinancialsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <QuickCurrencyCalcModal
+        visible={showQuickCalc}
+        onClose={() => setShowQuickCalc(false)}
+        baseCurrency={baseCurrency}
+        selectedCurrencies={selectedCurrencies}
+        exchangeRates={rates}
+        initialCurrency={activeTrip.baseCurrency}
+        theme={state.settings.theme}
+      />
     </SafeAreaView>
   );
 }
@@ -988,13 +1018,22 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
   },
+  headerActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   subtleAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
+    height: 36,
   },
   emptyState: {
     flex: 1,

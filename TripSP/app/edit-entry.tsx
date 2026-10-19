@@ -164,8 +164,11 @@ export default function EditEntryScreen() {
 
   // Hotel-specific states
   const [hotelName, setHotelName] = useState(hotelDetails?.name || '');
+  const [hotelLocalName, setHotelLocalName] = useState(hotelDetails?.localName || '');
   const [hotelAddress, setHotelAddress] = useState(hotelDetails?.address || '');
+  const [hotelLocalAddress, setHotelLocalAddress] = useState(hotelDetails?.localAddress || '');
   const [hotelCity, setHotelCity] = useState(hotelDetails?.city || '');
+  const [hotelCustomGpsUrl, setHotelCustomGpsUrl] = useState(hotelDetails?.customGpsUrl || '');
   const [checkInDateTime, setCheckInDateTime] = useState(hotelDetails?.checkInTime ? new Date(hotelDetails.checkInTime) : new Date());
   const [checkOutDateTime, setCheckOutDateTime] = useState(hotelDetails?.checkOutTime ? new Date(hotelDetails.checkOutTime) : new Date());
   const [showCheckInDate, setShowCheckInDate] = useState(false);
@@ -235,8 +238,11 @@ export default function EditEntryScreen() {
 
       if (existingEntry.hotelDetails) {
         setHotelName(existingEntry.hotelDetails.name || '');
+        setHotelLocalName(existingEntry.hotelDetails.localName || '');
         setHotelAddress(existingEntry.hotelDetails.address || '');
+        setHotelLocalAddress(existingEntry.hotelDetails.localAddress || '');
         setHotelCity(existingEntry.hotelDetails.city || '');
+        setHotelCustomGpsUrl(existingEntry.hotelDetails.customGpsUrl || '');
         if (existingEntry.hotelDetails.checkInTime) setCheckInDateTime(new Date(existingEntry.hotelDetails.checkInTime));
         if (existingEntry.hotelDetails.checkOutTime) setCheckOutDateTime(new Date(existingEntry.hotelDetails.checkOutTime));
       }
@@ -252,6 +258,19 @@ export default function EditEntryScreen() {
       }
     }
   }, [existingEntry, isEditing]);
+
+  const handleShowGpsHelp = () => {
+    Alert.alert(
+      'GPS & Map Link Formats',
+      'You can paste any of the following:\n\n' +
+      '• Google Maps Share Link:\n  Open Google Maps > Share > Copy Link\n  (e.g. https://maps.app.goo.gl/...)\n\n' +
+      '• Full Google Maps URL:\n  (e.g. https://google.com/maps/place/...)\n\n' +
+      '• Apple Maps Link:\n  (e.g. https://maps.apple.com/?...)\n\n' +
+      '• Raw Coordinates:\n  (e.g. 21.0337, 105.8504)\n\n' +
+      'When viewing the driver card, tapping "Open GPS Navigation" launches your maps app directly to this exact pin.',
+      [{ text: 'Got it' }]
+    );
+  };
 
   const handleSave = async () => {
     let finalTitle = title.trim();
@@ -312,8 +331,11 @@ export default function EditEntryScreen() {
       ...(type === 'hotel' && {
         hotelDetails: {
           name: hotelName.trim(),
+          localName: hotelLocalName.trim() || undefined,
           address: hotelAddress.trim(),
+          localAddress: hotelLocalAddress.trim() || undefined,
           city: hotelCity.trim(),
+          customGpsUrl: hotelCustomGpsUrl.trim() || undefined,
           checkInTime: checkInDateTime.toISOString(),
           checkOutTime: checkOutDateTime.toISOString(),
         }
@@ -870,6 +892,17 @@ export default function EditEntryScreen() {
               </View>
 
               <View style={[styles.field, { marginBottom: 12 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Hotel Name in Local Language (Optional)</Text>
+                <TextInput editable={isEditing}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder="e.g. Khách sạn Lồng Đèn Bạc"
+                  placeholderTextColor={colors.textMuted}
+                  value={hotelLocalName}
+                  onChangeText={setHotelLocalName}
+                />
+              </View>
+
+              <View style={[styles.field, { marginBottom: 12 }]}>
                 <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Address</Text>
                 <TextInput editable={isEditing}
                   style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
@@ -881,6 +914,17 @@ export default function EditEntryScreen() {
               </View>
 
               <View style={[styles.field, { marginBottom: 12 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Address in Local Language (Optional)</Text>
+                <TextInput editable={isEditing}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder="e.g. 12 Phố Cổ, Hoàn Kiếm, Hà Nội"
+                  placeholderTextColor={colors.textMuted}
+                  value={hotelLocalAddress}
+                  onChangeText={setHotelLocalAddress}
+                />
+              </View>
+
+              <View style={[styles.field, { marginBottom: 12 }]}>
                 <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>City</Text>
                 <TextInput editable={isEditing}
                   style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
@@ -888,6 +932,27 @@ export default function EditEntryScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={hotelCity}
                   onChangeText={setHotelCity}
+                />
+              </View>
+
+              <View style={[styles.field, { marginBottom: 12 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={[Typography.label, { color: colors.textMuted }]}>Google Maps Link / GPS (Optional)</Text>
+                  <TouchableOpacity
+                    onPress={handleShowGpsHelp}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="information-circle-outline" size={17} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+                <TextInput editable={isEditing}
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder="e.g. https://maps.app.goo.gl/... or 21.033, 105.850"
+                  placeholderTextColor={colors.textMuted}
+                  value={hotelCustomGpsUrl}
+                  onChangeText={setHotelCustomGpsUrl}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
               </View>
 

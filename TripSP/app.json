@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TripSP",
-    "slug": "Travezy",
+    "slug": "tripsp",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/TripSP-Logo-Compass.jpg",
@@ -43,7 +43,8 @@
         }
       ],
       "expo-sharing",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

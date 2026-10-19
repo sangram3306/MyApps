@@ -20,6 +20,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '../../src/storage/asyncStorage';
 import { formatTime } from '../../src/utils/date';
+import EmergencyModal from '../../src/components/EmergencyModal';
+import { scheduleTripNotifications } from '../../src/utils/notifications';
 
 export interface VirtualItineraryEntry {
   entry: ItineraryEntry;
@@ -46,7 +48,7 @@ export interface OngoingHotelMeta {
 }
 
 export default function ItineraryScreen() {
-  const { state, getActiveTrip, getEntriesForActiveTrip, deleteEntry } = useApp();
+  const { state, getActiveTrip, getEntriesForActiveTrip, deleteEntry, updateEntry } = useApp();
   const router = useRouter();
   const colors = Colors[state.settings.theme];
 
@@ -56,6 +58,7 @@ export default function ItineraryScreen() {
   const [collapsedHotels, setCollapsedHotels] = useState<Set<string>>(new Set());
   const [collapsedCities, setCollapsedCities] = useState<Set<string>>(new Set());
   const [showPrices, setShowPrices] = useState(true);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [cityImageMap, setCityImageMap] = useState<Record<string, string>>({});
   const [entryImageMap, setEntryImageMap] = useState<Record<string, string>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -64,6 +67,12 @@ export default function ItineraryScreen() {
     const timer = setInterval(() => setCurrentTime(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (activeTrip && entries.length > 0) {
+      scheduleTripNotifications(activeTrip, entries, state.settings);
+    }
+  }, [activeTrip?.id, entries.length, state.settings.notificationSettings]);
 
   useFocusEffect(
     useCallback(() => {
@@ -658,6 +667,13 @@ export default function ItineraryScreen() {
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
           <TouchableOpacity
+            style={[styles.headerActionBtn, { backgroundColor: colors.error + '18' }]}
+            onPress={() => setShowEmergencyModal(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="shield-checkmark" size={14} color={colors.error} />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
             onPress={() => setShowPrices(!showPrices)}
           >
@@ -804,6 +820,15 @@ export default function ItineraryScreen() {
             params: { tripId: activeTrip?.id || '', currency: activeTrip.baseCurrency },
           })
         }
+        theme={state.settings.theme}
+      />
+
+      <EmergencyModal
+        visible={showEmergencyModal}
+        onClose={() => setShowEmergencyModal(false)}
+        tripName={activeTrip?.name}
+        destinationHint={cityBlocks[0]?.cityName}
+        showAllCountries={false}
         theme={state.settings.theme}
       />
     </SafeAreaView>

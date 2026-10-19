@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ItineraryEntry } from '../../types';
@@ -8,6 +8,7 @@ import { useApp } from '../../context/AppContext';
 import { OngoingHotelMeta } from '../../../app/(tabs)/itinerary';
 import DocumentPills from '../DocumentPills';
 import { formatTime } from '../../utils/date';
+import TaxiDriverCardModal from '../TaxiDriverCardModal';
 
 interface HotelCardProps {
   entry: ItineraryEntry;
@@ -40,7 +41,8 @@ export default function HotelCard({
   entryImageUri,
   onPickEntryImage,
 }: HotelCardProps) {
-  const { state } = useApp();
+  const { state, updateEntry } = useApp();
+  const [showTaxiModal, setShowTaxiModal] = useState(false);
   const primaryCurrency = state.settings.selectedCurrencies[0];
   const rates = state.exchangeRates.rates;
   const displayPrice = convertCurrency(entry.price, entry.currency, primaryCurrency, rates);
@@ -99,11 +101,23 @@ export default function HotelCard({
         </Text>
         
         {!isCheckOutNode && (entry.hotelDetails?.address || entry.hotelDetails?.city || ongoingHotel?.city) ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-            <Ionicons name="location-outline" size={12} color={entryImageUri ? 'rgba(255,255,255,0.8)' : colors.textSecondary} />
-            <Text style={[Typography.caption, { color: entryImageUri ? 'rgba(255,255,255,0.8)' : colors.textSecondary, marginLeft: 4 }]} numberOfLines={1}>
-              {[entry.hotelDetails?.address, entry.hotelDetails?.city || ongoingHotel?.city].filter(Boolean).join(', ')}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+              <Ionicons name="location-outline" size={12} color={entryImageUri ? 'rgba(255,255,255,0.8)' : colors.textSecondary} />
+              <Text style={[Typography.caption, { color: entryImageUri ? 'rgba(255,255,255,0.8)' : colors.textSecondary, marginLeft: 4 }]} numberOfLines={1}>
+                {[entry.hotelDetails?.address, entry.hotelDetails?.city || ongoingHotel?.city].filter(Boolean).join(', ')}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                setShowTaxiModal(true);
+              }}
+              style={[styles.taxiCardBtn, { backgroundColor: entryImageUri ? 'rgba(0,0,0,0.4)' : '#FFD166' + '22' }]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="car" size={14} color="#FFD166" />
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -149,34 +163,71 @@ export default function HotelCard({
   );
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.card,
-        { backgroundColor: entryImageUri ? 'transparent' : cardBg, borderColor: entryImageUri ? accentColor + '40' : accentColor + '30', shadowColor: colors.shadow, overflow: 'hidden', padding: 0 },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      {entryImageUri ? (
-        <ImageBackground 
-          source={{ uri: entryImageUri }}
-          style={{ width: '100%', minHeight: 160, justifyContent: 'flex-end' }}
-          imageStyle={{ borderRadius: 20 }}
-        >
-          <View style={[styles.imageOverlay, { padding: 16 }]}>
+    <>
+      <TouchableOpacity
+        style={[
+          styles.card,
+          { backgroundColor: entryImageUri ? 'transparent' : cardBg, borderColor: entryImageUri ? accentColor + '40' : accentColor + '30', shadowColor: colors.shadow, overflow: 'hidden', padding: 0 },
+        ]}
+        onPress={onPress}
+        activeOpacity={0.9}
+      >
+        {entryImageUri ? (
+          <ImageBackground 
+            source={{ uri: entryImageUri }}
+            style={{ width: '100%', minHeight: 160, justifyContent: 'flex-end' }}
+            imageStyle={{ borderRadius: 20 }}
+          >
+            <View style={[styles.imageOverlay, { padding: 16 }]}>
+              {content}
+            </View>
+          </ImageBackground>
+        ) : (
+          <View style={{ padding: 16 }}>
             {content}
           </View>
-        </ImageBackground>
-      ) : (
-        <View style={{ padding: 16 }}>
-          {content}
-        </View>
-      )}
-    </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+
+      <TaxiDriverCardModal
+        visible={showTaxiModal}
+        onClose={() => setShowTaxiModal(false)}
+        hotelName={details?.name || 'Hotel'}
+        hotelAddress={entry.hotelDetails?.address || ''}
+        hotelCity={entry.hotelDetails?.city || ongoingHotel?.city}
+        localName={entry.hotelDetails?.localName}
+        localAddress={entry.hotelDetails?.localAddress}
+        customGpsUrl={entry.hotelDetails?.customGpsUrl}
+        countryOrCityHint={`${entry.hotelDetails?.city || ''} ${ongoingHotel?.city || ''} ${state.trips.find((t) => t.id === entry.tripId)?.name || ''}`}
+        onSaveLocalDetails={async (locName, locAddr, customGps) => {
+          if (entry.hotelDetails) {
+            await updateEntry({
+              ...entry,
+              hotelDetails: {
+                ...entry.hotelDetails,
+                localName: locName,
+                localAddress: locAddr,
+                customGpsUrl: customGps,
+              },
+            });
+          }
+        }}
+        theme={theme}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  taxiCardBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFD166',
+  },
   card: {
     flex: 1,
     marginRight: 16,

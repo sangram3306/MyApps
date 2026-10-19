@@ -73,6 +73,9 @@ export interface ItineraryEntry {
     city: string;
     checkInTime: string;  // ISO datetime
     checkOutTime: string; // ISO datetime
+    localName?: string;   // Name in local destination language
+    localAddress?: string; // Address in local destination language
+    customGpsUrl?: string; // Custom Google Maps link or coordinates
   };
   attractionDetails?: {
     startTime: string; // ISO datetime
@@ -97,6 +100,12 @@ export interface AppSettings {
   };
   realtimeTimeline?: boolean;
   timeFormat?: '12h' | '24h';
+  notificationSettings?: {
+    enabled: boolean;
+    flightReminders: boolean;
+    hotelReminders: boolean;
+    activityReminders: boolean;
+  };
 }
 
 // Currency info for display
