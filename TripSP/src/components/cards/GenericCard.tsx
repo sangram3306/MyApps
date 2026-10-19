@@ -34,6 +34,7 @@ export default function GenericCard({
   const displayPrice = convertCurrency(entry.price, entry.currency, primaryCurrency, rates);
 
   const cardBg = meta.color + (theme === 'dark' ? '10' : '08');
+  const hasBottomContent = Boolean(ongoingHotel) || Boolean(entry.transportDetails) || Boolean(entry.documents && entry.documents.length > 0);
   
   return (
     <TouchableOpacity
@@ -44,12 +45,12 @@ export default function GenericCard({
       onPress={onPress}
       activeOpacity={0.9}
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
         <View style={[styles.iconBox, { backgroundColor: meta.color }]}>
           <Ionicons name={meta.icon as any} size={20} color="#FFF" />
         </View>
         
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
           <Text style={[Typography.bodySemibold, { color: colors.text, fontSize: 16 }]} numberOfLines={1}>
             {entry.title}
           </Text>
@@ -58,10 +59,15 @@ export default function GenericCard({
           </Text>
         </View>
 
+        {showPrice !== false && entry.price > 0 && (
+          <Text style={[Typography.bodySemibold, { color: colors.text }]}>
+            {formatCurrency(displayPrice, primaryCurrency)}
+          </Text>
+        )}
       </View>
 
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 12, paddingLeft: 48 }}>
-        <View style={{ flex: 1, paddingRight: 8 }}>
+      {hasBottomContent && (
+        <View style={{ marginTop: 8, paddingLeft: 52 }}>
           {ongoingHotel && (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4, opacity: 0.8 }}>
               <Ionicons name="bed" size={12} color={colors.textSecondary} />
@@ -80,13 +86,7 @@ export default function GenericCard({
           )}
           <DocumentPills documents={entry.documents} theme={theme} />
         </View>
-
-        {showPrice !== false && entry.price > 0 && (
-          <Text style={[Typography.bodySemibold, { color: colors.text }]}>
-            {formatCurrency(displayPrice, primaryCurrency)}
-          </Text>
-        )}
-      </View>
+      )}
     </TouchableOpacity>
   );
 }
