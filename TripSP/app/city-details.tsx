@@ -15,13 +15,16 @@ import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '
 // Re-use types from itinerary
 export interface VirtualItineraryEntry {
   entry: ItineraryEntry;
-  virtualType?: 'check-in' | 'check-out' | 'city-header';
+  virtualType?: 'check-in' | 'check-out' | 'city-header' | 'current-time';
   startTime: number;
   cityName?: string;
   blockType?: 'city' | 'travel';
   cityItemCount?: number;
   cityStartDateLabel?: string;
   cityEndDateLabel?: string;
+  endTime?: number;
+  isOngoingNow?: boolean;
+  isShiftedCheckIn?: boolean;
 }
 
 export interface OngoingHotelMeta {
@@ -179,6 +182,7 @@ export default function CityDetailsScreen() {
       
       if (latestTravelTimeOnSameDay > vEntry.startTime) {
         vEntry.startTime = latestTravelTimeOnSameDay + 60000;
+        vEntry.isShiftedCheckIn = true;
       }
     }
   });
@@ -248,14 +252,24 @@ export default function CityDetailsScreen() {
     if (index > 0) {
       const prevEntry = cityEntries[index - 1];
       const prevEndTime = getEntryEndTime(prevEntry);
-      if (prevEndTime > 0 && vEntry.startTime > prevEndTime) {
+      const isSameDay = new Date(vEntry.startTime).toDateString() === new Date(prevEndTime).toDateString();
+      const isCheckInInvolved = prevEntry.virtualType === 'check-in' || vEntry.virtualType === 'check-in';
+
+      if (
+        prevEndTime > 0 &&
+        vEntry.startTime > prevEndTime &&
+        isSameDay &&
+        !isCheckInInvolved &&
+        !vEntry.isShiftedCheckIn &&
+        !prevEntry.isShiftedCheckIn
+      ) {
         const gapMs = vEntry.startTime - prevEndTime;
-        if (gapMs > 0 && gapMs < 24 * 60 * 60 * 1000) {
+        if (gapMs > 60000 && gapMs < 24 * 60 * 60 * 1000) {
           const hours = Math.floor(gapMs / 3600000);
           const mins = Math.floor((gapMs % 3600000) / 60000);
           if (hours > 0 && mins > 0) gapText = `${hours}h ${mins}m free`;
           else if (hours > 0) gapText = `${hours}h free`;
-          else gapText = `${mins}m free`;
+          else if (mins > 1) gapText = `${mins}m free`;
         }
       }
     }
@@ -445,7 +459,7 @@ export default function CityDetailsScreen() {
             onPress={() => handleEntryPress(item.vEntry.entry)}
             theme={state.settings.theme}
             showPrice={showPrices}
-            entryImageUri={(item.vEntry.entry.type === 'hotel' || item.vEntry.entry.type === 'attraction') && state.settings.showCardImages?.[item.vEntry.entry.type] !== false ? entryImageMap[item.vEntry.entry.id] : undefined}
+            entryImageUri={(item.vEntry.entry.type === 'hotel' || item.vEntry.entry.type === 'attraction') && state.settings.showCardImages?.[item.vEntry.entry.type as 'hotel' | 'attraction'] !== false ? entryImageMap[item.vEntry.entry.id] : undefined}
           />
         )}
       />

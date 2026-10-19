@@ -182,12 +182,6 @@ export default function TripsScreen() {
             Your Travel Companion
           </Text>
         </View>
-        {state.settings.offlineMode && (
-          <View style={[styles.offlineBadge, { backgroundColor: colors.warning + '20' }]}>
-            <Ionicons name="cloud-offline" size={14} color={colors.warning} />
-            <Text style={[Typography.caption, { color: colors.warning, marginLeft: 4 }]}>Offline</Text>
-          </View>
-        )}
       </View>
 
       {/* Trip List */}
@@ -245,14 +239,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
-  },
-  offlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 4,
   },
   emptyState: {
     flex: 1,

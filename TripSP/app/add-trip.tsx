@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DualModeDatePickerModal from '../src/components/DualModeDatePickerModal';
 import { useApp } from '../src/context/AppContext';
 import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
@@ -70,8 +70,9 @@ export default function AddTripScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -91,7 +92,13 @@ export default function AddTripScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+        >
           {/* Trip Name */}
           <View style={styles.field}>
             <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>
@@ -134,21 +141,17 @@ export default function AddTripScreen() {
                 {formatDate(startDate)}
               </Text>
             </TouchableOpacity>
-            {showStartPicker && (
-              <DateTimePicker
-                value={startDate}
-                mode="date"
-                display="spinner"
-                onValueChange={(event, date) => {
-                  if (date) {
-                    setStartDate(date);
-                    if (date > endDate) setEndDate(date);
-                  }
-                  if (Platform.OS === 'android') setShowStartPicker(false);
-                }}
-                textColor={colors.text}
-              />
-            )}
+            <DualModeDatePickerModal
+              visible={showStartPicker}
+              value={startDate}
+              title="Start Date"
+              theme={state.settings.theme}
+              onConfirm={(date) => {
+                setStartDate(date);
+                if (date > endDate) setEndDate(date);
+              }}
+              onClose={() => setShowStartPicker(false)}
+            />
           </View>
 
           {/* End Date */}
@@ -171,19 +174,15 @@ export default function AddTripScreen() {
                 {formatDate(endDate)}
               </Text>
             </TouchableOpacity>
-            {showEndPicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                display="spinner"
-                minimumDate={startDate}
-                onValueChange={(event, date) => {
-                  if (date) setEndDate(date);
-                  if (Platform.OS === 'android') setShowEndPicker(false);
-                }}
-                textColor={colors.text}
-              />
-            )}
+            <DualModeDatePickerModal
+              visible={showEndPicker}
+              value={endDate}
+              title="End Date"
+              minimumDate={startDate}
+              theme={state.settings.theme}
+              onConfirm={(date) => setEndDate(date)}
+              onClose={() => setShowEndPicker(false)}
+            />
           </View>
 
           {/* Base Currency */}

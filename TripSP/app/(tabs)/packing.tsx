@@ -211,8 +211,15 @@ export default function PackingScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+        >
           {/* Header */}
           <View style={styles.header}>
             <View style={{ flex: 1 }}>

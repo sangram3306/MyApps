@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { Trip, ItineraryEntry, AppSettings, PackingCategory } from '../types';
+import { Trip, ItineraryEntry, AppSettings, PackingCategory, CustomCategory } from '../types';
 
 // File-based storage using expo-file-system (works in Expo Go)
 // Write directly to documentDirectory to avoid directory creation issues
@@ -21,15 +21,17 @@ const FILE_NAMES = {
   PACKING: 'packing.json',
   CITY_IMAGES: 'city_images.json',
   ENTRY_IMAGES: 'entry_images.json',
+  CUSTOM_CATEGORIES: 'custom_categories.json',
 };
 
 // Default settings
 const DEFAULT_SETTINGS: AppSettings = {
   offlineMode: false,
-  selectedCurrencies: ['USD', 'EUR', 'GBP'],
+  selectedCurrencies: ['USD', 'EUR', 'GBP', 'VND'],
   theme: 'dark',
   multiScreenItinerary: false,
   showCardImages: { city: true, hotel: true, attraction: true },
+  timeFormat: '12h',
 };
 
 // ─── File Helpers ───────────────────────────────────
@@ -143,7 +145,20 @@ export async function deleteEntry(entryId: string): Promise<void> {
 
 export async function getSettings(): Promise<AppSettings> {
   const stored = await readJSON<AppSettings | null>(FILE_NAMES.SETTINGS, null);
-  return stored ? { ...DEFAULT_SETTINGS, ...stored } : DEFAULT_SETTINGS;
+  const settings = stored ? { ...DEFAULT_SETTINGS, ...stored } : DEFAULT_SETTINGS;
+  if (Array.isArray(settings.selectedCurrencies) && settings.selectedCurrencies.length < 4) {
+    const candidates = ['USD', 'EUR', 'GBP', 'VND', 'AED', 'SGD', 'THB', 'JPY'];
+    const updated = [...settings.selectedCurrencies];
+    for (const c of candidates) {
+      if (updated.length >= 4) break;
+      if (!updated.includes(c)) {
+        updated.push(c);
+      }
+    }
+    settings.selectedCurrencies = updated;
+    await writeJSON(FILE_NAMES.SETTINGS, settings);
+  }
+  return settings;
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
@@ -180,6 +195,16 @@ export async function getEntryImages(): Promise<Record<string, string>> {
 
 export async function saveEntryImages(images: Record<string, string>): Promise<void> {
   await writeJSON(FILE_NAMES.ENTRY_IMAGES, images);
+}
+
+// ─── Custom Categories ──────────────────────────────
+
+export async function getCustomCategories(): Promise<CustomCategory[]> {
+  return readJSON<CustomCategory[]>(FILE_NAMES.CUSTOM_CATEGORIES, []);
+}
+
+export async function saveCustomCategories(categories: CustomCategory[]): Promise<void> {
+  await writeJSON(FILE_NAMES.CUSTOM_CATEGORIES, categories);
 }
 
 // ─── Export & Import ────────────────────────────────
@@ -239,12 +264,15 @@ export async function exportAllData(): Promise<string> {
     }
   }
 
+  const customCategories = await getCustomCategories();
+
   const exportObject = {
     trips,
     entries,
     settings,
     activeTripId,
     packing,
+    customCategories,
     documentFiles,
     cityImageFiles,
     entryImageFiles,
@@ -260,7 +288,21 @@ export async function importAllData(jsonString: string): Promise<boolean> {
 
     await saveTrips(data.trips);
     await saveAllEntries(data.entries);
-    if (data.settings) await saveSettings(data.settings);
+    if (data.customCategories) await saveCustomCategories(data.customCategories);
+    if (data.settings) {
+      if (Array.isArray(data.settings.selectedCurrencies) && data.settings.selectedCurrencies.length < 4) {
+        const candidates = ['USD', 'EUR', 'GBP', 'VND', 'AED', 'SGD', 'THB', 'JPY'];
+        const updated = [...data.settings.selectedCurrencies];
+        for (const c of candidates) {
+          if (updated.length >= 4) break;
+          if (!updated.includes(c)) {
+            updated.push(c);
+          }
+        }
+        data.settings.selectedCurrencies = updated;
+      }
+      await saveSettings(data.settings);
+    }
     if (data.activeTripId !== undefined) await setActiveTripId(data.activeTripId);
     if (data.packing) await savePackingCategories(data.packing);
 

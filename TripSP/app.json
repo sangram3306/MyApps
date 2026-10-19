@@ -2,42 +2,57 @@
   "expo": {
     "name": "TripSP",
     "slug": "Travezy",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/TripSP-Logo-Compass.jpg",
     "scheme": "travezy",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#030F13",
+    "splash": {
+      "image": "./assets/images/transparent.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#030F13"
+    },
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      "backgroundColor": "#030F13",
+      "predictiveBackGestureEnabled": false,
+      "splash": {
+        "backgroundColor": "#030F13"
       },
-      "predictiveBackGestureEnabled": false
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/TripSP-Logo.png",
+        "backgroundColor": "#030F13"
+      },
+      "package": "com.sangramdev.Travezy"
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "static"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/transparent.png",
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#030F13"
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fa87ae8c-2488-492d-86a7-108663972574"
+      }
     }
   }
 }

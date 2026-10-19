@@ -7,6 +7,7 @@ import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
 import { OngoingHotelMeta } from '../../../app/(tabs)/itinerary';
 import DocumentPills from '../DocumentPills';
+import { formatTime } from '../../utils/date';
 
 interface AttractionCardProps {
   entry: ItineraryEntry;
@@ -67,7 +68,7 @@ export default function AttractionCard({
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
             <Ionicons name="time" size={14} color={entryImageUri ? '#FFF' : meta.color} />
             <Text style={[Typography.bodySemibold, { color: entryImageUri ? '#FFF' : meta.color, marginLeft: 6 }]}>
-              {new Date(entry.attractionDetails.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(entry.attractionDetails.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {formatTime(entry.attractionDetails.startTime, state.settings.timeFormat)} - {formatTime(entry.attractionDetails.endTime, state.settings.timeFormat)}
             </Text>
           </View>
         )}
@@ -81,11 +82,6 @@ export default function AttractionCard({
           </View>
         )}
 
-        {entry.notes ? (
-          <Text style={[Typography.caption, { color: entryImageUri ? 'rgba(255,255,255,0.8)' : colors.textSecondary, marginTop: 8, fontStyle: 'italic' }]} numberOfLines={2}>
-            "{entry.notes}"
-          </Text>
-        ) : null}
         {!entryImageUri && <DocumentPills documents={entry.documents} theme={theme} />}
       </View>
 

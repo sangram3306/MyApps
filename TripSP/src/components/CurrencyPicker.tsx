@@ -110,6 +110,8 @@ export default function CurrencyPicker({
           <FlatList
             data={filteredCurrencies}
             keyExtractor={(item) => item.code}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             renderItem={({ item }) => {
               const isSelected = selected.includes(item.code);
               return (

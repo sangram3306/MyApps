@@ -5,6 +5,7 @@ import { ItineraryEntry } from '../../types';
 import { Typography } from '../../theme/typography';
 import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
+import { formatTime } from '../../utils/date';
 import DocumentPills from '../DocumentPills';
 
 interface FlightCardProps {
@@ -33,7 +34,7 @@ export default function FlightCard({
 
   if (!entry.flightDetails) return null;
 
-  const { from, to, departureTime, arrivalTime, isConnecting, connections, flightName, flightType } = entry.flightDetails;
+  const { from, to, departureTime, arrivalTime, isConnecting, connections, flightName, flightType, departureTerminal, arrivalTerminal } = entry.flightDetails;
 
   const formatDuration = (ms: number) => {
     const mins = Math.floor(ms / 60000);
@@ -92,7 +93,7 @@ export default function FlightCard({
               {from.toUpperCase().substring(0, 3)}
             </Text>
             <Text style={[Typography.captionSemibold, { color: colors.textSecondary, marginTop: 2 }]}>
-              {new Date(departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {formatTime(departureTime, state.settings.timeFormat)}
             </Text>
           </View>
           
@@ -116,28 +117,50 @@ export default function FlightCard({
               {to.toUpperCase().substring(0, 3)}
             </Text>
             <Text style={[Typography.captionSemibold, { color: colors.textSecondary, marginTop: 2 }]}>
-              {new Date(arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {formatTime(arrivalTime, state.settings.timeFormat)}
             </Text>
           </View>
         </View>
 
-        {/* Separator for extra details */}
-        {(!!displayTitle || !!entry.notes || isConnecting) && (
-          <View style={[styles.dashedSeparator, { borderColor: colors.border }]} />
+        {/* Direct Flight info: 3-column layout aligned with departure, center, and arrival */}
+        {!isConnecting && (!!flightName || !!departureTerminal || !!arrivalTerminal) && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, marginBottom: (!!displayTitle || (entry.documents && entry.documents.length > 0)) ? 10 : 2 }}>
+            <View style={{ flex: 1, alignItems: 'flex-start' }}>
+              {!!departureTerminal && (
+                <Text style={[Typography.caption, { color: colors.textSecondary, fontSize: 10.5 }]} numberOfLines={1}>
+                  Dep: {departureTerminal}
+                </Text>
+              )}
+            </View>
+
+            <View style={{ flex: 1.5, alignItems: 'center', paddingHorizontal: 4 }}>
+              {!!flightName && (
+                <Text style={[Typography.captionMedium, { color: colors.text, fontSize: 11, textAlign: 'center' }]} numberOfLines={1}>
+                  {flightName}
+                </Text>
+              )}
+            </View>
+
+            <View style={{ flex: 1, alignItems: 'flex-end' }}>
+              {!!arrivalTerminal && (
+                <Text style={[Typography.caption, { color: colors.textSecondary, fontSize: 10.5 }]} numberOfLines={1}>
+                  Arr: {arrivalTerminal}
+                </Text>
+              )}
+            </View>
+          </View>
         )}
 
-        {(!!displayTitle || !!entry.notes) && (
+        {/* Separator only if extra details exist below (custom title or attached documents) */}
+        {(!!displayTitle || (entry.documents && entry.documents.length > 0)) && (
+          <View style={[styles.dashedSeparator, { borderColor: colors.border, marginBottom: 8 }]} />
+        )}
+
+        {!!displayTitle && (
           <View style={{ marginTop: 10 }}>
-            {!!displayTitle && (
-              <Text style={[Typography.caption, { color: colors.textMuted, fontSize: 11, paddingRight: 8 }]} numberOfLines={1}>
-                {displayTitle}
-              </Text>
-            )}
-            {!!entry.notes && (
-               <Text style={[Typography.caption, { color: colors.textMuted, marginTop: displayTitle ? 4 : 0, fontStyle: 'italic' }]} numberOfLines={2}>
-                 "{entry.notes}"
-               </Text>
-            )}
+            <Text style={[Typography.caption, { color: colors.textMuted, fontSize: 11, paddingRight: 8 }]} numberOfLines={1}>
+              {displayTitle}
+            </Text>
           </View>
         )}
 
@@ -161,7 +184,7 @@ export default function FlightCard({
             {connections.map((conn, idx) => {
               const isLast = idx === connections.length - 1;
               return (
-                <View key={idx}>
+                <View key={idx} style={{ marginBottom: isLast ? 0 : 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}>
                     <Text style={[Typography.captionSemibold, { color: colors.text, fontSize: 11 }]}>{conn.from}</Text>
                     <View style={{ flex: 1, height: 1, backgroundColor: colors.border, marginHorizontal: 8, borderStyle: 'dashed', borderWidth: 1 }} />
@@ -169,12 +192,37 @@ export default function FlightCard({
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={[Typography.caption, { color: colors.textSecondary, fontSize: 10 }]}>
-                      {new Date(conn.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatTime(conn.departureTime, state.settings.timeFormat)}
                     </Text>
                     <Text style={[Typography.caption, { color: colors.textSecondary, fontSize: 10 }]}>
-                      {new Date(conn.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatTime(conn.arrivalTime, state.settings.timeFormat)}
                     </Text>
                   </View>
+                  {(!!conn.flightName || !!conn.departureTerminal || !!conn.arrivalTerminal) && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                      <View style={{ flex: 1, alignItems: 'flex-start' }}>
+                        {!!conn.departureTerminal && (
+                          <Text style={[Typography.caption, { color: colors.textSecondary, fontSize: 9.5 }]} numberOfLines={1}>
+                            Dep: {conn.departureTerminal}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={{ flex: 1.5, alignItems: 'center', paddingHorizontal: 4 }}>
+                        {!!conn.flightName && (
+                          <Text style={[Typography.captionMedium, { color: colors.text, fontSize: 10, textAlign: 'center' }]} numberOfLines={1}>
+                            {conn.flightName}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        {!!conn.arrivalTerminal && (
+                          <Text style={[Typography.caption, { color: colors.textSecondary, fontSize: 9.5 }]} numberOfLines={1}>
+                            Arr: {conn.arrivalTerminal}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
                   {!isLast && layovers[idx] && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 6, backgroundColor: meta.color + '10', paddingVertical: 4, borderRadius: 4 }}>
                       <Ionicons name="time-outline" size={10} color={meta.color} style={{ marginRight: 4 }} />

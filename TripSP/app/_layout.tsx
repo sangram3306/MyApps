@@ -3,22 +3,29 @@ import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from '../src/context/AppContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../src/theme/colors';
+import { useState, useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+import AnimatedSplashScreen from '../src/components/AnimatedSplashScreen';
+
+// Removed top-level SplashScreen.preventAutoHideAsync()
 
 function RootLayoutInner() {
   const { state } = useApp();
+  const [showSplash, setShowSplash] = useState(true);
   const isDark = state.settings.theme === 'dark';
   const colors = Colors[state.settings.theme];
 
-  if (state.isLoading) {
-    return (
-      <View style={[styles.loading, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  useEffect(() => {
+    SplashScreen.preventAutoHideAsync().catch(() => {});
+  }, []);
 
   return (
     <>
+      {showSplash && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 999 }]}>
+          <AnimatedSplashScreen onAnimationComplete={() => setShowSplash(false)} />
+        </View>
+      )}
       <Stack
         screenOptions={{
           headerShown: false,

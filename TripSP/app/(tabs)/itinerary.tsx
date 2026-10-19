@@ -19,17 +19,20 @@ import FAB from '../../src/components/FAB';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '../../src/storage/asyncStorage';
+import { formatTime } from '../../src/utils/date';
 
 export interface VirtualItineraryEntry {
   entry: ItineraryEntry;
-  virtualType?: 'check-in' | 'check-out' | 'city-header';
+  virtualType?: 'check-in' | 'check-out' | 'city-header' | 'current-time';
   startTime: number;
   cityName?: string;
   blockType?: 'city' | 'travel';
   cityItemCount?: number;
   cityStartDateLabel?: string;
   cityEndDateLabel?: string;
+  endTime?: number;
   isOngoingNow?: boolean;
+  isShiftedCheckIn?: boolean;
 }
 
 export interface OngoingHotelMeta {
@@ -157,7 +160,7 @@ export default function ItineraryScreen() {
   const getShortDateTime = (isoTime: string) => {
     const d = new Date(isoTime);
     const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const time = formatTime(d, state.settings.timeFormat);
     return `${date}, ${time}`;
   };
 
@@ -216,6 +219,7 @@ export default function ItineraryScreen() {
       if (latestTravelTimeOnSameDay > vEntry.startTime) {
         // Push check-in to 1 minute after the last travel event
         vEntry.startTime = latestTravelTimeOnSameDay + 60000;
+        vEntry.isShiftedCheckIn = true;
       }
     }
   });
@@ -433,28 +437,42 @@ export default function ItineraryScreen() {
     };
 
     if ((vEntry.virtualType === 'city-header' || vEntry.virtualType === 'check-in') && lastTravelArrivalTime !== null) {
-      const diffMs = vEntry.startTime - lastTravelArrivalTime;
-      const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins > 0) {
-        let suffix = 'before first activity';
-        if (vEntry.virtualType === 'check-in') {
-          suffix = 'until check-in';
-        } else if (vEntry.virtualType === 'city-header') {
-          const nextEntry = virtualEntries[index + 1];
-          if (nextEntry && nextEntry.virtualType === 'check-in') {
-            suffix = 'until check-in';
-          }
-        }
-        gapText = formatGapStr(diffMins, suffix);
+      const isShifted = vEntry.virtualType === 'check-in'
+        ? !!vEntry.isShiftedCheckIn
+        : (virtualEntries[index + 1]?.virtualType === 'check-in' && !!virtualEntries[index + 1]?.isShiftedCheckIn);
+
+      if (isShifted) {
+        // Check-in was already open earlier in the day; traveler arrived late.
+        // Suppress artificial gap and consume lastTravelArrivalTime so it doesn't leak.
         lastTravelArrivalTime = null;
+      } else {
+        const diffMs = vEntry.startTime - lastTravelArrivalTime;
+        const diffMins = Math.floor(diffMs / 60000);
+        if (diffMins > 1) {
+          let suffix = 'before first activity';
+          if (vEntry.virtualType === 'check-in') {
+            suffix = 'until check-in';
+          } else if (vEntry.virtualType === 'city-header') {
+            const nextEntry = virtualEntries[index + 1];
+            if (nextEntry && nextEntry.virtualType === 'check-in') {
+              suffix = 'until check-in';
+            }
+          }
+          gapText = formatGapStr(diffMins, suffix);
+          lastTravelArrivalTime = null;
+        } else {
+          lastTravelArrivalTime = null;
+        }
       }
     }
 
     if (vEntry.entry.type === 'transport' && lastTravelArrivalTime !== null) {
       const diffMs = vEntry.startTime - lastTravelArrivalTime;
       const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins > 0) {
+      if (diffMins > 1) {
         gapText = formatGapStr(diffMins, 'until pickup');
+        lastTravelArrivalTime = null;
+      } else {
         lastTravelArrivalTime = null;
       }
     }
@@ -462,8 +480,10 @@ export default function ItineraryScreen() {
     if (vEntry.entry.type === 'transport' && lastHotelCheckoutTime !== null) {
       const diffMs = vEntry.startTime - lastHotelCheckoutTime;
       const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins > 0) {
+      if (diffMins > 1) {
         gapText = formatGapStr(diffMins, 'until pickup');
+        lastHotelCheckoutTime = null;
+      } else {
         lastHotelCheckoutTime = null;
       }
     }
@@ -471,8 +491,10 @@ export default function ItineraryScreen() {
     if (vEntry.entry.type === 'flight' && lastHotelCheckoutTime !== null) {
       const diffMs = vEntry.startTime - lastHotelCheckoutTime;
       const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins > 0) {
+      if (diffMins > 1) {
         gapText = formatGapStr(diffMins, 'until flight');
+        lastHotelCheckoutTime = null;
+      } else {
         lastHotelCheckoutTime = null;
       }
     }
@@ -739,7 +761,7 @@ export default function ItineraryScreen() {
                 showPrice={showPrices}
                 cityImageUri={state.settings.showCardImages?.city !== false && item.vEntry.virtualType === 'city-header' && item.vEntry.cityName ? cityImageMap[`${activeTrip?.id}::${item.vEntry.cityName}`] : undefined}
                 onPickCityImage={item.vEntry.virtualType === 'city-header' && item.vEntry.cityName ? () => handlePickCityImage(item.vEntry.cityName!) : undefined}
-                entryImageUri={(item.vEntry.entry.type === 'hotel' || item.vEntry.entry.type === 'attraction') && state.settings.showCardImages?.[item.vEntry.entry.type] !== false ? entryImageMap[item.vEntry.entry.id] : undefined}
+                entryImageUri={(item.vEntry.entry.type === 'hotel' || item.vEntry.entry.type === 'attraction') && state.settings.showCardImages?.[item.vEntry.entry.type as 'hotel' | 'attraction'] !== false ? entryImageMap[item.vEntry.entry.id] : undefined}
               />
             );
 

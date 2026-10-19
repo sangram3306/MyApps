@@ -7,6 +7,7 @@ import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
 import { OngoingHotelMeta } from '../../../app/(tabs)/itinerary';
 import DocumentPills from '../DocumentPills';
+import { formatTime } from '../../utils/date';
 
 interface GenericCardProps {
   entry: ItineraryEntry;
@@ -73,15 +74,10 @@ export default function GenericCard({
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
               <Ionicons name="time-outline" size={12} color={meta.color} />
               <Text style={[Typography.captionSemibold, { color: meta.color, marginLeft: 4 }]}>
-                {new Date(entry.transportDetails.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(entry.transportDetails.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {formatTime(entry.transportDetails.startTime, state.settings.timeFormat)} - {formatTime(entry.transportDetails.endTime, state.settings.timeFormat)}
               </Text>
             </View>
           )}
-          {entry.notes ? (
-            <Text style={[Typography.caption, { color: colors.textSecondary }]} numberOfLines={2}>
-              {entry.notes}
-            </Text>
-          ) : <View />}
           <DocumentPills documents={entry.documents} theme={theme} />
         </View>
 

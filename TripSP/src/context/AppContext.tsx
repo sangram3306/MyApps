@@ -23,11 +23,12 @@ const initialState: AppState = {
   packingCategories: [],
   settings: {
     offlineMode: false,
-    selectedCurrencies: ['USD', 'EUR', 'GBP'],
+    selectedCurrencies: ['USD', 'EUR', 'GBP', 'VND'],
     theme: 'dark',
     multiScreenItinerary: false,
     showCardImages: { city: true, hotel: true, attraction: true },
     realtimeTimeline: true,
+    timeFormat: '12h',
   },
   exchangeRates: {
     base: 'USD',
@@ -137,6 +138,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getExchangeRates(),
         Storage.getPackingCategories(),
       ]);
+
+      if (settings && Array.isArray(settings.selectedCurrencies) && settings.selectedCurrencies.length < 4) {
+        const candidates = ['USD', 'EUR', 'GBP', 'VND', 'AED', 'SGD', 'THB', 'JPY'];
+        const updated = [...settings.selectedCurrencies];
+        for (const c of candidates) {
+          if (updated.length >= 4) break;
+          if (!updated.includes(c)) {
+            updated.push(c);
+          }
+        }
+        settings.selectedCurrencies = updated;
+        await Storage.saveSettings(settings);
+      }
 
       dispatch({
         type: 'LOAD_DATA',

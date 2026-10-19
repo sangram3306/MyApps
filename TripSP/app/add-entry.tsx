@@ -12,24 +12,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useApp } from '../src/context/AppContext';
 import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
 import { ENTRY_TYPE_META, ItineraryEntry, EntryType } from '../src/types';
-import { toLocalDateString } from '../src/utils/date';
+import { toLocalDateString, formatTime } from '../src/utils/date';
 import * as Crypto from 'expo-crypto';
 import DocumentManager from '../src/components/DocumentManager';
+import DualModeTimePickerModal from '../src/components/DualModeTimePickerModal';
+import DualModeDatePickerModal from '../src/components/DualModeDatePickerModal';
 
-const ENTRY_TYPES: EntryType[] = ['flight', 'hotel', 'attraction', 'food', 'transport', 'other'];
+const ENTRY_TYPES: EntryType[] = ['flight', 'hotel', 'attraction', 'food', 'transport', 'shopping', 'other'];
 
 export default function AddEntryScreen() {
   const { state, addEntry } = useApp();
   const router = useRouter();
-  const params = useLocalSearchParams<{ tripId: string; currency: string }>();
+  const params = useLocalSearchParams<{ tripId: string; currency: string; type?: string }>();
   const colors = Colors[state.settings.theme];
 
-  const [type, setType] = useState<EntryType>('flight');
+  const [type, setType] = useState<EntryType>((params.type as EntryType) || 'flight');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -97,9 +98,7 @@ export default function AddEntryScreen() {
   const formatDateTime = (d: Date) => {
     return d.toLocaleDateString('en-US', {
       month: 'short', day: 'numeric'
-    }) + ' ' + d.toLocaleTimeString('en-US', {
-      hour: '2-digit', minute: '2-digit'
-    });
+    }) + ' ' + formatTime(d, state.settings.timeFormat);
   };
 
   const formatDate = (d: Date) => {
@@ -161,9 +160,9 @@ export default function AddEntryScreen() {
             to: c.to.trim(),
             departureTime: c.departureTime.toISOString(),
             arrivalTime: c.arrivalTime.toISOString(),
-            flightName: c.flightName.trim(),
-            departureTerminal: c.departureTerminal.trim(),
-            arrivalTerminal: c.arrivalTerminal.trim(),
+            flightName: c.flightName?.trim() || '',
+            departureTerminal: c.departureTerminal?.trim() || '',
+            arrivalTerminal: c.arrivalTerminal?.trim() || '',
           }))
         }
       }),
@@ -197,8 +196,9 @@ export default function AddEntryScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -218,7 +218,13 @@ export default function AddEntryScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+        >
           {/* Entry Type Selector */}
           <View style={styles.field}>
             <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 10 }]}>
@@ -272,7 +278,7 @@ export default function AddEntryScreen() {
                     color: colors.text,
                   },
                 ]}
-                placeholder={`e.g., ${type === 'attraction' ? 'Eiffel Tower Visit' : type === 'food' ? 'Dinner at Café' : type === 'transport' ? 'Airport Taxi' : 'Activity'}`}
+                placeholder={`e.g., ${type === 'attraction' ? 'Eiffel Tower Visit' : type === 'food' ? 'Dinner at Café' : type === 'shopping' ? 'Local Market Shopping' : type === 'transport' ? 'Airport Taxi' : 'Expense / Activity'}`}
                 placeholderTextColor={colors.textMuted}
                 value={title}
                 onChangeText={setTitle}
@@ -366,17 +372,26 @@ export default function AddEntryScreen() {
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowDepTime(true)}>
                         <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                        <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{departureDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                        <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(departureDateTime, state.settings.timeFormat)}</Text>
                       </TouchableOpacity>
                     </View>
-                    {showDepDate && (
-                      <DateTimePicker value={departureDateTime} mode="date" display="spinner"
-                        onValueChange={(e, d) => { if(d) setDepartureDateTime(d); if(Platform.OS === 'android') setShowDepDate(false); }} />
-                    )}
-                    {showDepTime && (
-                      <DateTimePicker value={departureDateTime} mode="time" display="spinner"
-                        onValueChange={(e, d) => { if(d) setDepartureDateTime(d); if(Platform.OS === 'android') setShowDepTime(false); }} />
-                    )}
+                    <DualModeDatePickerModal
+                      visible={showDepDate}
+                      value={departureDateTime}
+                      title="Departure Date"
+                      theme={state.settings.theme}
+                      onConfirm={(d) => setDepartureDateTime(d)}
+                      onClose={() => setShowDepDate(false)}
+                    />
+                    <DualModeTimePickerModal
+                      visible={showDepTime}
+                      value={departureDateTime}
+                      title="Departure Time"
+                      timeFormat={state.settings.timeFormat}
+                      theme={state.settings.theme}
+                      onConfirm={(d) => setDepartureDateTime(d)}
+                      onClose={() => setShowDepTime(false)}
+                    />
                   </View>
 
                   <View style={[{ marginBottom: 0 }]}>
@@ -388,17 +403,27 @@ export default function AddEntryScreen() {
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowArrTime(true)}>
                         <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                        <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{arrivalDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                        <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(arrivalDateTime, state.settings.timeFormat)}</Text>
                       </TouchableOpacity>
                     </View>
-                    {showArrDate && (
-                      <DateTimePicker value={arrivalDateTime} mode="date" display="spinner"
-                        onValueChange={(e, d) => { if(d) setArrivalDateTime(d); if(Platform.OS === 'android') setShowArrDate(false); }} />
-                    )}
-                    {showArrTime && (
-                      <DateTimePicker value={arrivalDateTime} mode="time" display="spinner"
-                        onValueChange={(e, d) => { if(d) setArrivalDateTime(d); if(Platform.OS === 'android') setShowArrTime(false); }} />
-                    )}
+                    <DualModeDatePickerModal
+                      visible={showArrDate}
+                      value={arrivalDateTime}
+                      title="Arrival Date"
+                      minimumDate={departureDateTime}
+                      theme={state.settings.theme}
+                      onConfirm={(d) => setArrivalDateTime(d)}
+                      onClose={() => setShowArrDate(false)}
+                    />
+                    <DualModeTimePickerModal
+                      visible={showArrTime}
+                      value={arrivalDateTime}
+                      title="Arrival Time"
+                      timeFormat={state.settings.timeFormat}
+                      theme={state.settings.theme}
+                      onConfirm={(d) => setArrivalDateTime(d)}
+                      onClose={() => setShowArrTime(false)}
+                    />
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -482,20 +507,65 @@ export default function AddEntryScreen() {
                             <Text style={[Typography.captionMedium, { color: colors.text }]}>{formatDate(conn.departureTime)}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1, paddingVertical: 10 }]} onPress={() => setActivePicker({ index, type: 'depTime' })}>
-                            <Text style={[Typography.captionMedium, { color: colors.text }]}>{conn.departureTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                            <Text style={[Typography.captionMedium, { color: colors.text }]}>{formatTime(conn.departureTime, state.settings.timeFormat)}</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
 
-                      <View style={[{ marginBottom: 0 }]}>
+                      <View style={[{ marginBottom: 12 }]}>
                         <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8, fontSize: 10 }]}>Arrival (Date & Time)</Text>
                         <View style={styles.row}>
                           <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1, marginRight: 8, paddingVertical: 10 }]} onPress={() => setActivePicker({ index, type: 'arrDate' })}>
                             <Text style={[Typography.captionMedium, { color: colors.text }]}>{formatDate(conn.arrivalTime)}</Text>
                           </TouchableOpacity>
                           <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1, paddingVertical: 10 }]} onPress={() => setActivePicker({ index, type: 'arrTime' })}>
-                            <Text style={[Typography.captionMedium, { color: colors.text }]}>{conn.arrivalTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                            <Text style={[Typography.captionMedium, { color: colors.text }]}>{formatTime(conn.arrivalTime, state.settings.timeFormat)}</Text>
                           </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      <View style={{ marginBottom: 12 }}>
+                        <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8, fontSize: 10 }]}>FLIGHT NAME / AIRLINE</Text>
+                        <TextInput
+                          style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.inputBorder, paddingVertical: 10 }]}
+                          placeholder="e.g. Indigo"
+                          placeholderTextColor={colors.textMuted}
+                          value={conn.flightName}
+                          onChangeText={(t) => {
+                            const newConns = [...connections];
+                            newConns[index].flightName = t;
+                            setConnections(newConns);
+                          }}
+                        />
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <View style={[styles.field, { flex: 1 }]}>
+                          <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8, fontSize: 10 }]}>DEP. TERMINAL</Text>
+                          <TextInput
+                            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.inputBorder, paddingVertical: 10 }]}
+                            placeholder="e.g. T1"
+                            placeholderTextColor={colors.textMuted}
+                            value={conn.departureTerminal}
+                            onChangeText={(t) => {
+                              const newConns = [...connections];
+                              newConns[index].departureTerminal = t;
+                              setConnections(newConns);
+                            }}
+                          />
+                        </View>
+                        <View style={[styles.field, { flex: 1 }]}>
+                          <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8, fontSize: 10 }]}>ARR. TERMINAL</Text>
+                          <TextInput
+                            style={[styles.input, { backgroundColor: colors.inputBg, color: colors.text, borderColor: colors.inputBorder, paddingVertical: 10 }]}
+                            placeholder="e.g. T2"
+                            placeholderTextColor={colors.textMuted}
+                            value={conn.arrivalTerminal}
+                            onChangeText={(t) => {
+                              const newConns = [...connections];
+                              newConns[index].arrivalTerminal = t;
+                              setConnections(newConns);
+                            }}
+                          />
                         </View>
                       </View>
                     </View>
@@ -503,16 +573,17 @@ export default function AddEntryScreen() {
 
                   {/* Active Picker Overlay for Connecting Flights */}
                   {activePicker && (
-                    <DateTimePicker
-                      value={
-                        activePicker.type.startsWith('dep')
-                          ? connections[activePicker.index].departureTime
-                          : connections[activePicker.index].arrivalTime
-                      }
-                      mode={activePicker.type.endsWith('Date') ? 'date' : 'time'}
-                      display="spinner"
-                      onValueChange={(e, d) => {
-                        if (d) {
+                    activePicker.type.endsWith('Date') ? (
+                      <DualModeDatePickerModal
+                        visible={true}
+                        value={
+                          activePicker.type.startsWith('dep')
+                            ? connections[activePicker.index].departureTime
+                            : connections[activePicker.index].arrivalTime
+                        }
+                        title={activePicker.type.startsWith('dep') ? 'Connecting Dep Date' : 'Connecting Arr Date'}
+                        theme={state.settings.theme}
+                        onConfirm={(d) => {
                           const newConns = [...connections];
                           if (activePicker.type.startsWith('dep')) {
                             newConns[activePicker.index].departureTime = d;
@@ -520,10 +591,33 @@ export default function AddEntryScreen() {
                             newConns[activePicker.index].arrivalTime = d;
                           }
                           setConnections(newConns);
+                        }}
+                        onClose={() => setActivePicker(null)}
+                      />
+                    ) : (
+                      <DualModeTimePickerModal
+                        visible={true}
+                        value={
+                          activePicker.type.startsWith('dep')
+                            ? connections[activePicker.index].departureTime
+                            : connections[activePicker.index].arrivalTime
                         }
-                        if (Platform.OS === 'android') setActivePicker(null);
-                      }}
-                    />
+                        title={activePicker.type.startsWith('dep') ? 'Departure Time' : 'Arrival Time'}
+                        timeFormat={state.settings.timeFormat}
+                        theme={state.settings.theme}
+                        onConfirm={(d) => {
+                          const newConns = [...connections];
+                          if (activePicker.type.startsWith('dep')) {
+                            newConns[activePicker.index].departureTime = d;
+                          } else {
+                            newConns[activePicker.index].arrivalTime = d;
+                          }
+                          setConnections(newConns);
+                          setActivePicker(null);
+                        }}
+                        onClose={() => setActivePicker(null)}
+                      />
+                    )
                   )}
 
                   <TouchableOpacity
@@ -583,17 +677,26 @@ export default function AddEntryScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowCheckInTime(true)}>
                     <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{checkInDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(checkInDateTime, state.settings.timeFormat)}</Text>
                   </TouchableOpacity>
                 </View>
-                {showCheckInDate && (
-                  <DateTimePicker value={checkInDateTime} mode="date" display="spinner"
-                    onValueChange={(e, d) => { if(d) setCheckInDateTime(d); if(Platform.OS === 'android') setShowCheckInDate(false); }} />
-                )}
-                {showCheckInTime && (
-                  <DateTimePicker value={checkInDateTime} mode="time" display="spinner"
-                    onValueChange={(e, d) => { if(d) setCheckInDateTime(d); if(Platform.OS === 'android') setShowCheckInTime(false); }} />
-                )}
+                <DualModeDatePickerModal
+                  visible={showCheckInDate}
+                  value={checkInDateTime}
+                  title="Check-In Date"
+                  theme={state.settings.theme}
+                  onConfirm={(d) => setCheckInDateTime(d)}
+                  onClose={() => setShowCheckInDate(false)}
+                />
+                <DualModeTimePickerModal
+                  visible={showCheckInTime}
+                  value={checkInDateTime}
+                  title="Check-In Time"
+                  timeFormat={state.settings.timeFormat}
+                  theme={state.settings.theme}
+                  onConfirm={(d) => setCheckInDateTime(d)}
+                  onClose={() => setShowCheckInTime(false)}
+                />
               </View>
 
               <View style={[styles.field, { marginBottom: 0 }]}>
@@ -605,17 +708,27 @@ export default function AddEntryScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowCheckOutTime(true)}>
                     <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{checkOutDateTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(checkOutDateTime, state.settings.timeFormat)}</Text>
                   </TouchableOpacity>
                 </View>
-                {showCheckOutDate && (
-                  <DateTimePicker value={checkOutDateTime} mode="date" display="spinner"
-                    onValueChange={(e, d) => { if(d) setCheckOutDateTime(d); if(Platform.OS === 'android') setShowCheckOutDate(false); }} />
-                )}
-                {showCheckOutTime && (
-                  <DateTimePicker value={checkOutDateTime} mode="time" display="spinner"
-                    onValueChange={(e, d) => { if(d) setCheckOutDateTime(d); if(Platform.OS === 'android') setShowCheckOutTime(false); }} />
-                )}
+                <DualModeDatePickerModal
+                  visible={showCheckOutDate}
+                  value={checkOutDateTime}
+                  title="Check-Out Date"
+                  minimumDate={checkInDateTime}
+                  theme={state.settings.theme}
+                  onConfirm={(d) => setCheckOutDateTime(d)}
+                  onClose={() => setShowCheckOutDate(false)}
+                />
+                <DualModeTimePickerModal
+                  visible={showCheckOutTime}
+                  value={checkOutDateTime}
+                  title="Check-Out Time"
+                  timeFormat={state.settings.timeFormat}
+                  theme={state.settings.theme}
+                  onConfirm={(d) => setCheckOutDateTime(d)}
+                  onClose={() => setShowCheckOutTime(false)}
+                />
               </View>
             </View>
           )}
@@ -641,18 +754,14 @@ export default function AddEntryScreen() {
                   {formatDate(date)}
                 </Text>
               </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="date"
-                  display="spinner"
-                  onValueChange={(event, d) => {
-                    if (d) setDate(d);
-                    if (Platform.OS === 'android') setShowDatePicker(false);
-                  }}
-                  textColor={colors.text}
-                />
-              )}
+              <DualModeDatePickerModal
+                visible={showDatePicker}
+                value={date}
+                title="Select Date"
+                theme={state.settings.theme}
+                onConfirm={(d) => setDate(d)}
+                onClose={() => setShowDatePicker(false)}
+              />
             </View>
           )}
 
@@ -663,21 +772,31 @@ export default function AddEntryScreen() {
               <View style={styles.row}>
                 <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1, marginRight: 8 }]} onPress={() => setShowAttractionStartTime(true)}>
                   <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{attractionStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(attractionStartTime, state.settings.timeFormat)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowAttractionEndTime(true)}>
                   <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{attractionEndTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(attractionEndTime, state.settings.timeFormat)}</Text>
                 </TouchableOpacity>
               </View>
-              {showAttractionStartTime && (
-                <DateTimePicker value={attractionStartTime} mode="time" display="spinner"
-                  onValueChange={(e, d) => { if(d) setAttractionStartTime(d); if(Platform.OS === 'android') setShowAttractionStartTime(false); }} />
-              )}
-              {showAttractionEndTime && (
-                <DateTimePicker value={attractionEndTime} mode="time" display="spinner"
-                  onValueChange={(e, d) => { if(d) setAttractionEndTime(d); if(Platform.OS === 'android') setShowAttractionEndTime(false); }} />
-              )}
+              <DualModeTimePickerModal
+                visible={showAttractionStartTime}
+                value={attractionStartTime}
+                title="Start Time"
+                timeFormat={state.settings.timeFormat}
+                theme={state.settings.theme}
+                onConfirm={(d) => setAttractionStartTime(d)}
+                onClose={() => setShowAttractionStartTime(false)}
+              />
+              <DualModeTimePickerModal
+                visible={showAttractionEndTime}
+                value={attractionEndTime}
+                title="End Time"
+                timeFormat={state.settings.timeFormat}
+                theme={state.settings.theme}
+                onConfirm={(d) => setAttractionEndTime(d)}
+                onClose={() => setShowAttractionEndTime(false)}
+              />
             </View>
           )}
 
@@ -688,21 +807,31 @@ export default function AddEntryScreen() {
               <View style={styles.row}>
                 <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1, marginRight: 8 }]} onPress={() => setShowTransportStartTime(true)}>
                   <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{transportStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportStartTime, state.settings.timeFormat)}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowTransportEndTime(true)}>
                   <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{transportEndTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportEndTime, state.settings.timeFormat)}</Text>
                 </TouchableOpacity>
               </View>
-              {showTransportStartTime && (
-                <DateTimePicker value={transportStartTime} mode="time" display="spinner"
-                  onValueChange={(e, d) => { if(d) setTransportStartTime(d); if(Platform.OS === 'android') setShowTransportStartTime(false); }} />
-              )}
-              {showTransportEndTime && (
-                <DateTimePicker value={transportEndTime} mode="time" display="spinner"
-                  onValueChange={(e, d) => { if(d) setTransportEndTime(d); if(Platform.OS === 'android') setShowTransportEndTime(false); }} />
-              )}
+              <DualModeTimePickerModal
+                visible={showTransportStartTime}
+                value={transportStartTime}
+                title="Pickup Time"
+                timeFormat={state.settings.timeFormat}
+                theme={state.settings.theme}
+                onConfirm={(d) => setTransportStartTime(d)}
+                onClose={() => setShowTransportStartTime(false)}
+              />
+              <DualModeTimePickerModal
+                visible={showTransportEndTime}
+                value={transportEndTime}
+                title="Dropoff Time"
+                timeFormat={state.settings.timeFormat}
+                theme={state.settings.theme}
+                onConfirm={(d) => setTransportEndTime(d)}
+                onClose={() => setShowTransportEndTime(false)}
+              />
             </View>
           )}
 
@@ -750,6 +879,7 @@ export default function AddEntryScreen() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
+              scrollEnabled={false}
             />
           </View>
           <DocumentManager documents={documents} onChange={setDocuments} theme={state.settings.theme} />
@@ -806,7 +936,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   notesInput: {
-    height: 120,
+    minHeight: 120,
     paddingTop: 14,
   },
 });

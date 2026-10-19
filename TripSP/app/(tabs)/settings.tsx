@@ -186,13 +186,21 @@ export default function SettingsScreen() {
     }
   };
 
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          automaticallyAdjustKeyboardInsets
+        >
         {/* Header */}
         <View style={styles.header}>
           <Text style={[Typography.h1, { color: colors.text }]}>Settings</Text>
@@ -203,27 +211,6 @@ export default function SettingsScreen() {
           General
         </Text>
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {/* Offline Mode */}
-          <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
-            <View style={styles.rowLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: colors.warning + '20' }]}>
-                <Ionicons name="cloud-offline" size={18} color={colors.warning} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Offline Mode</Text>
-                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                  No internet required
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={state.settings.offlineMode}
-              onValueChange={(value) => updateSettings({ offlineMode: value })}
-              trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
-              thumbColor={state.settings.offlineMode ? colors.primary : colors.textMuted}
-            />
-          </View>
-
           {/* Theme */}
           <View style={styles.row}>
             <View style={styles.rowLeft}>
@@ -247,6 +234,51 @@ export default function SettingsScreen() {
               trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
               thumbColor={state.settings.theme === 'dark' ? colors.primary : colors.textMuted}
             />
+          </View>
+
+          {/* Clock Format (12h / 24h) */}
+          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.accent + '20' }]}>
+                <Ionicons name="time-outline" size={18} color={colors.accent} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Clock Format</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  {state.settings.timeFormat === '24h' ? '24-hour (14:30)' : '12-hour (2:30 PM)'}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', backgroundColor: colors.inputBg, borderRadius: 10, padding: 3, borderWidth: 1, borderColor: colors.borderLight }}>
+              <TouchableOpacity
+                onPress={() => updateSettings({ timeFormat: '12h' })}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: state.settings.timeFormat !== '24h' ? colors.primary : 'transparent',
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[Typography.captionSemibold, { color: state.settings.timeFormat !== '24h' ? '#FFF' : colors.textMuted }]}>
+                  12h
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => updateSettings({ timeFormat: '24h' })}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: state.settings.timeFormat === '24h' ? colors.primary : 'transparent',
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[Typography.captionSemibold, { color: state.settings.timeFormat === '24h' ? '#FFF' : colors.textMuted }]}>
+                  24h
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -368,7 +400,7 @@ export default function SettingsScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {state.settings.selectedCurrencies.map((code, index) => (
             <TouchableOpacity
-              key={index}
+              key={`${code}-${index}`}
               activeOpacity={0.7}
               onPress={() => {
                 setEditingCurrencyIndex(index);
@@ -378,7 +410,7 @@ export default function SettingsScreen() {
                 styles.row,
                 {
                   borderBottomColor: colors.borderLight,
-                  borderBottomWidth: index < state.settings.selectedCurrencies.length - 1 ? 1 : 0,
+                  borderBottomWidth: (index < state.settings.selectedCurrencies.length - 1 || state.settings.selectedCurrencies.length < 4) ? 1 : 0,
                 },
               ]}
             >
@@ -389,7 +421,14 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
                 <View style={styles.rowText}>
-                  <Text style={[Typography.bodyMedium, { color: colors.text }]}>{code}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[Typography.bodyMedium, { color: colors.text }]}>{code}</Text>
+                    {index === 0 && (
+                      <Text style={[Typography.caption, { color: colors.primary, fontWeight: '700', marginLeft: 6 }]}>
+                        (Primary)
+                      </Text>
+                    )}
+                  </View>
                   <Text style={[Typography.caption, { color: colors.textSecondary }]}>
                     {getCurrencyName(code)}
                   </Text>
@@ -400,6 +439,7 @@ export default function SettingsScreen() {
                   <TouchableOpacity 
                     onPress={() => moveCurrency(index, 'up')}
                     disabled={index === 0}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     style={{ padding: 4, opacity: index === 0 ? 0.3 : 1 }}
                   >
                     <Ionicons name="chevron-up" size={16} color={colors.textSecondary} />
@@ -407,17 +447,45 @@ export default function SettingsScreen() {
                   <TouchableOpacity 
                     onPress={() => moveCurrency(index, 'down')}
                     disabled={index === state.settings.selectedCurrencies.length - 1}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     style={{ padding: 4, opacity: index === state.settings.selectedCurrencies.length - 1 ? 0.3 : 1 }}
                   >
                     <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
-                <View style={[styles.orderBadge, { backgroundColor: colors.primary + '20' }]}>
-                  <Text style={[Typography.captionMedium, { color: colors.primary }]}>#{index + 1}</Text>
+
+                <View style={[styles.orderBadge, { backgroundColor: index === 0 ? colors.primary + '25' : colors.primary + '15' }]}>
+                  <Text style={[Typography.captionMedium, { color: colors.primary, fontWeight: index === 0 ? '700' : '500' }]}>
+                    #{index + 1}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
           ))}
+
+          {state.settings.selectedCurrencies.length < 4 && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                setEditingCurrencyIndex(state.settings.selectedCurrencies.length);
+                setShowCurrencyPicker(true);
+              }}
+              style={[
+                styles.row,
+                {
+                  justifyContent: 'center',
+                  paddingVertical: 14,
+                  backgroundColor: colors.primary + '0A',
+                  borderBottomWidth: 0,
+                },
+              ]}
+            >
+              <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+              <Text style={[Typography.bodySemibold, { color: colors.primary, marginLeft: 8 }]}>
+                Add Currency ({state.settings.selectedCurrencies.length}/4)
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Data Management Section */}
@@ -465,13 +533,12 @@ export default function SettingsScreen() {
             </Text>
             <Text style={[Typography.caption, { color: colors.textSecondary }]}>
               Last updated: {state.exchangeRates.date}
-              {state.settings.offlineMode ? ' (using cached rates)' : ''}
             </Text>
           </View>
         </View>
 
-        {/* Manual Rates Editor (Offline Mode) */}
-        {state.settings.offlineMode && state.settings.selectedCurrencies.length > 1 && (
+        {/* Manual Rates Editor */}
+        {state.settings.selectedCurrencies.length > 1 && (
           <OfflineRatesEditor
             colors={colors}
             primaryCurrency={state.settings.selectedCurrencies[0]}
@@ -518,13 +585,36 @@ export default function SettingsScreen() {
 
       <CurrencyPicker
         visible={showCurrencyPicker}
-        selectedCurrencies={editingCurrencyIndex !== null ? [state.settings.selectedCurrencies[editingCurrencyIndex]] : []}
+        selectedCurrencies={
+          editingCurrencyIndex !== null && editingCurrencyIndex < state.settings.selectedCurrencies.length
+            ? [state.settings.selectedCurrencies[editingCurrencyIndex]]
+            : []
+        }
         maxSelections={1}
         onConfirm={(currencies) => {
           if (editingCurrencyIndex !== null && currencies.length === 1) {
-            const newCurrencies = [...state.settings.selectedCurrencies];
-            newCurrencies[editingCurrencyIndex] = currencies[0];
-            updateSettings({ selectedCurrencies: newCurrencies });
+            const selected = currencies[0];
+            const currentList = state.settings.selectedCurrencies;
+            if (editingCurrencyIndex >= currentList.length) {
+              // Adding a new currency slot
+              if (currentList.length < 4 && !currentList.includes(selected)) {
+                updateSettings({ selectedCurrencies: [...currentList, selected] });
+              }
+            } else {
+              // Editing an existing currency slot
+              const existingIdx = currentList.indexOf(selected);
+              if (existingIdx !== -1 && existingIdx !== editingCurrencyIndex) {
+                // Swap slots to avoid duplicate entries
+                const newCurrencies = [...currentList];
+                newCurrencies[existingIdx] = newCurrencies[editingCurrencyIndex];
+                newCurrencies[editingCurrencyIndex] = selected;
+                updateSettings({ selectedCurrencies: newCurrencies });
+              } else {
+                const newCurrencies = [...currentList];
+                newCurrencies[editingCurrencyIndex] = selected;
+                updateSettings({ selectedCurrencies: newCurrencies });
+              }
+            }
           }
         }}
         onClose={() => {

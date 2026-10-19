@@ -7,6 +7,7 @@ import { formatCurrency, convertCurrency } from '../../data/exchangeRates';
 import { useApp } from '../../context/AppContext';
 import { OngoingHotelMeta } from '../../../app/(tabs)/itinerary';
 import DocumentPills from '../DocumentPills';
+import { formatTime } from '../../utils/date';
 
 interface HotelCardProps {
   entry: ItineraryEntry;
@@ -112,7 +113,7 @@ export default function HotelCard({
             <View style={[styles.dateBox, { backgroundColor: entryImageUri ? 'rgba(0,0,0,0.4)' : (theme === 'dark' ? '#1c1c1e' : '#ffffff'), borderColor: entryImageUri ? 'rgba(255,255,255,0.3)' : colors.border }]}>
               <Text style={[Typography.caption, { color: entryImageUri ? 'rgba(255,255,255,0.7)' : colors.textMuted, fontSize: 10, textTransform: 'uppercase' }]}>Check-In</Text>
               <Text style={[Typography.bodySemibold, { color: entryImageUri ? '#FFF' : colors.text, marginTop: 4 }]}>
-                {ongoingHotel ? ongoingHotel.checkInDateTime : new Date(entry.hotelDetails!.checkInTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {ongoingHotel ? ongoingHotel.checkInDateTime : `${new Date(entry.hotelDetails!.checkInTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${formatTime(entry.hotelDetails!.checkInTime, state.settings.timeFormat)}`}
               </Text>
             </View>
           )}
@@ -120,7 +121,7 @@ export default function HotelCard({
           <View style={[styles.dateBox, { backgroundColor: entryImageUri ? 'rgba(0,0,0,0.4)' : (theme === 'dark' ? '#1c1c1e' : '#ffffff'), borderColor: entryImageUri ? 'rgba(255,255,255,0.3)' : colors.border }]}>
               <Text style={[Typography.caption, { color: entryImageUri ? 'rgba(255,255,255,0.7)' : colors.textMuted, fontSize: 10, textTransform: 'uppercase' }]}>Check-Out</Text>
               <Text style={[Typography.bodySemibold, { color: entryImageUri ? '#FFF' : colors.text, marginTop: 4 }]}>
-                {ongoingHotel ? ongoingHotel.checkOutDateTime : new Date(entry.hotelDetails!.checkOutTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {ongoingHotel ? ongoingHotel.checkOutDateTime : `${new Date(entry.hotelDetails!.checkOutTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${formatTime(entry.hotelDetails!.checkOutTime, state.settings.timeFormat)}`}
               </Text>
             </View>
         </View>

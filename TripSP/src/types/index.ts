@@ -1,5 +1,21 @@
 // Entry types for itinerary items
-export type EntryType = 'flight' | 'hotel' | 'attraction' | 'food' | 'transport' | 'other';
+export type EntryType =
+  | 'flight'
+  | 'hotel'
+  | 'attraction'
+  | 'food'
+  | 'transport'
+  | 'shopping'
+  | 'grocery'
+  | 'other'
+  | (string & {});
+
+export interface CustomCategory {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+}
 
 export type TripStatus = 'ACTIVE' | 'CANCELLED' | 'COMPLETED' | 'POSTPONED';
 
@@ -80,6 +96,7 @@ export interface AppSettings {
     attraction: boolean;
   };
   realtimeTimeline?: boolean;
+  timeFormat?: '12h' | '24h';
 }
 
 // Currency info for display
@@ -97,13 +114,15 @@ export interface ExchangeRates {
 }
 
 // Entry type metadata for UI
-export const ENTRY_TYPE_META: Record<EntryType, { label: string; icon: string; color: string }> = {
+export const ENTRY_TYPE_META: Record<string, { label: string; icon: string; color: string }> = {
   flight: { label: 'Flight', icon: 'airplane', color: '#6C63FF' },
   hotel: { label: 'Hotel', icon: 'bed', color: '#FF6B6B' },
   attraction: { label: 'Attraction', icon: 'ticket', color: '#4ECDC4' },
   food: { label: 'Food', icon: 'restaurant', color: '#FFB347' },
   transport: { label: 'Transport', icon: 'car', color: '#45B7D1' },
-  other: { label: 'Other', icon: 'ellipsis-horizontal', color: '#95A5A6' },
+  shopping: { label: 'Shopping', icon: 'bag-handle', color: '#EC4899' },
+  grocery: { label: 'Grocery', icon: 'cart', color: '#10B981' },
+  other: { label: 'Others', icon: 'ellipsis-horizontal', color: '#8B5CF6' },
 };
 
 // Packing list item

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Modal, Dimensions, TextInput, Platform, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Modal, Dimensions, TextInput, Platform, FlatList, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -199,7 +199,10 @@ export default function DocumentManager({ documents, onChange, theme }: Document
 
       {/* Rename Modal */}
       <Modal visible={!!editingDoc} animationType="fade" transparent={true} onRequestClose={() => setEditingDoc(null)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
           <View style={[styles.renameModal, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text style={[Typography.h3, { color: colors.text, marginBottom: 12 }]}>Rename Document</Text>
             <TextInput
@@ -218,7 +221,7 @@ export default function DocumentManager({ documents, onChange, theme }: Document
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

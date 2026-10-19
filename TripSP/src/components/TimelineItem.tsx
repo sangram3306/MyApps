@@ -39,6 +39,7 @@ interface TimelineItemProps {
   onPickEntryImage?: () => void;
   isCompleted?: boolean;
   isCurrentCity?: boolean;
+  isOngoingNow?: boolean;
 }
 
 export default function TimelineItem({
