@@ -720,35 +720,31 @@ export default function ItineraryScreen() {
           >
             <Ionicons name={showPrices ? "eye-off-outline" : "eye-outline"} size={14} color={colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
-            onPress={() => {
-              const isAnyCollapsed = collapsedCities.size > 0 || collapsedHotels.size > 0;
-              if (isAnyCollapsed) {
-                setCollapsedCities(new Set());
-                setCollapsedHotels(new Set());
-              } else {
-                const allCities = new Set<string>();
-                const allHotels = new Set<string>();
-                cityBlocks.forEach(b => {
-                  if (b.cityName !== 'Unknown City') allCities.add(b.cityName);
-                });
-                entries.forEach(e => {
-                  if (e.type === 'hotel') allHotels.add(e.id);
-                });
-                setCollapsedCities(allCities);
-                setCollapsedHotels(allHotels);
-              }
-            }}
-          >
-            <Ionicons name={(collapsedCities.size > 0 || collapsedHotels.size > 0) ? "expand" : "contract"} size={14} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
-            onPress={() => router.push('/')}
-          >
-            <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
-          </TouchableOpacity>
+          {!state.settings.multiScreenItinerary && (
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
+              onPress={() => {
+                const isAnyCollapsed = collapsedCities.size > 0 || collapsedHotels.size > 0;
+                if (isAnyCollapsed) {
+                  setCollapsedCities(new Set());
+                  setCollapsedHotels(new Set());
+                } else {
+                  const allCities = new Set<string>();
+                  const allHotels = new Set<string>();
+                  cityBlocks.forEach(b => {
+                    if (b.cityName !== 'Unknown City') allCities.add(b.cityName);
+                  });
+                  entries.forEach(e => {
+                    if (e.type === 'hotel') allHotels.add(e.id);
+                  });
+                  setCollapsedCities(allCities);
+                  setCollapsedHotels(allHotels);
+                }
+              }}
+            >
+              <Ionicons name={(collapsedCities.size > 0 || collapsedHotels.size > 0) ? "expand" : "contract"} size={14} color={colors.primary} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
