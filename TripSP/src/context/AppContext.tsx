@@ -3,6 +3,7 @@ import { Trip, ItineraryEntry, AppSettings, ExchangeRates, PackingCategory } fro
 import * as Storage from '../storage/asyncStorage';
 import { getExchangeRates, fetchAndCacheRates, saveExchangeRates } from '../data/exchangeRates';
 import * as Crypto from 'expo-crypto';
+import { syncAllNotifications, cancelTripNotifications } from '../utils/notifications';
 
 // ─── State ──────────────────────────────────────────
 
@@ -170,6 +171,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  // Automatically sync offline notifications whenever trips, entries, or notification settings change
+  useEffect(() => {
+    if (!state.isLoading) {
+      syncAllNotifications(state.trips, state.entries, state.settings);
+    }
+  }, [state.isLoading, state.trips, state.entries, state.settings.notificationSettings]);
+
   const addTrip = async (trip: Trip) => {
     await Storage.addTrip(trip);
     dispatch({ type: 'ADD_TRIP', payload: trip });
@@ -213,6 +221,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteTrip = async (tripId: string) => {
     await Storage.deleteTrip(tripId);
+    cancelTripNotifications(tripId).catch(() => {});
     dispatch({ type: 'DELETE_TRIP', payload: tripId });
   };
 

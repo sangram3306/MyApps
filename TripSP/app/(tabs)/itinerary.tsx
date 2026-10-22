@@ -23,7 +23,6 @@ import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '
 import { formatTime } from '../../src/utils/date';
 import EmergencyModal from '../../src/components/EmergencyModal';
 import TripDocumentsModal from '../../src/components/TripDocumentsModal';
-import { scheduleTripNotifications } from '../../src/utils/notifications';
 import { exportItineraryPdf } from '../../src/utils/pdfGenerator';
 
 export interface VirtualItineraryEntry {
@@ -73,11 +72,6 @@ export default function ItineraryScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (activeTrip && entries.length > 0) {
-      scheduleTripNotifications(activeTrip, entries, state.settings);
-    }
-  }, [activeTrip?.id, entries.length, state.settings.notificationSettings]);
 
   useFocusEffect(
     useCallback(() => {

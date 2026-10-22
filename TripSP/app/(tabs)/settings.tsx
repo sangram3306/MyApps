@@ -24,7 +24,7 @@ import { CURRENCIES } from '../../src/data/exchangeRates';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
 import { exportAllData, importAllData } from '../../src/storage/asyncStorage';
 import EmergencyModal from '../../src/components/EmergencyModal';
-import { requestNotificationPermissions, formatLeadTime, scheduleTripNotifications, sendTestNotification } from '../../src/utils/notifications';
+import { requestNotificationPermissions, formatLeadTime, scheduleTripNotifications } from '../../src/utils/notifications';
 import AlertTimingModal, { AlertPreset } from '../../src/components/AlertTimingModal';
 
 const FLIGHT_PRESETS: AlertPreset[] = [
@@ -601,7 +601,7 @@ export default function SettingsScreen() {
                 />
               </View>
 
-              <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
+              <View style={[styles.row, { borderBottomColor: 'transparent' }]}>
                 <TouchableOpacity
                   style={styles.rowLeft}
                   onPress={() => setTimingModalType('activity')}
@@ -651,37 +651,6 @@ export default function SettingsScreen() {
                   thumbColor={(state.settings.notificationSettings?.activityReminders ?? true) ? colors.primary : colors.textMuted}
                 />
               </View>
-
-              <TouchableOpacity
-                style={[styles.row, { borderBottomColor: 'transparent', backgroundColor: colors.primary + '08' }]}
-                onPress={async () => {
-                  const res = await sendTestNotification();
-                  if (res.success) {
-                    Alert.alert(
-                      'Test Alert Scheduled! 🔔',
-                      'A test notification will trigger in 3 seconds. You can lock or minimize your phone now to test the alert and banner.'
-                    );
-                  } else {
-                    Alert.alert('Notification Test', res.message || 'Could not schedule test notification.');
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.rowLeft}>
-                  <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
-                    <Ionicons name="notifications" size={18} color={colors.primary} />
-                  </View>
-                  <View style={styles.rowText}>
-                    <Text style={[Typography.bodyMedium, { color: colors.primary, fontWeight: '600' }]}>
-                      Send Test Notification
-                    </Text>
-                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                      Triggers a local offline alert in 3 seconds
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-              </TouchableOpacity>
             </>
           )}
         </View>

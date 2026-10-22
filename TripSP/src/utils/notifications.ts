@@ -31,7 +31,7 @@ function getNotifications(): typeof import('expo-notifications') | null {
   _checked = true;
 
   try {
-    // Expo Go (StoreClient) does not support native notification scheduling in SDK 52+
+    // Expo Go (StoreClient) does not include expo-notifications native binaries in SDK 52/53
     const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
     if (isExpoGo) {
       return null;
@@ -55,7 +55,6 @@ function getNotifications(): typeof import('expo-notifications') | null {
       setupAndroidNotificationChannel(mod);
     }
   } catch (err) {
-    console.warn('Failed to load expo-notifications native module:', err);
     _notificationsModule = null;
   }
 
@@ -103,6 +102,20 @@ export async function cancelTripNotifications(tripId: string) {
     }
   } catch (error) {
     console.warn('Failed to cancel notifications for trip:', error);
+  }
+}
+
+/**
+ * Cancels all scheduled notifications across all trips.
+ */
+export async function cancelAllTripNotifications() {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (error) {
+    console.warn('Failed to cancel all notifications:', error);
   }
 }
 
@@ -173,28 +186,64 @@ export async function scheduleTripNotifications(
       if (entry.tripId !== trip.id) continue;
 
       // 1. Flights: Configurable hours/mins before departure
-      if (flightPref && entry.type === 'flight' && entry.flightDetails?.departureTime) {
-        const depTime = new Date(entry.flightDetails.departureTime).getTime();
-        const triggerTime = depTime - flightLeadMs;
+      if (flightPref && entry.type === 'flight' && entry.flightDetails) {
+        const { flightDetails } = entry;
+        const flightName = flightDetails.flightName ? ` (${flightDetails.flightName})` : '';
 
-        if (triggerTime > now) {
-          const leadText = formatLeadTime(flightLeadMinutes);
-          const flightName = entry.flightDetails.flightName ? ` (${entry.flightDetails.flightName})` : '';
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title: `✈️ Upcoming Flight${flightName}`,
-              body: `Flight from ${entry.flightDetails.from} to ${entry.flightDetails.to} departs in ${leadText}. Check terminals & passports!`,
-              data: { tripId: trip.id, entryId: entry.id },
-              sound: true,
-              priority: Notifications.AndroidNotificationPriority.HIGH,
-            },
-            trigger: {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: triggerTime,
-              channelId: 'default',
-            },
-          }).catch((err) => console.warn('Failed scheduling flight notification:', err));
-          scheduledCount++;
+        // If connecting flight with separate legs, schedule alarms for each upcoming leg
+        if (flightDetails.isConnecting && flightDetails.connections && flightDetails.connections.length > 0) {
+          for (let i = 0; i < flightDetails.connections.length; i++) {
+            const conn = flightDetails.connections[i];
+            if (!conn.departureTime) continue;
+            const depTime = new Date(conn.departureTime).getTime();
+            const triggerTime = depTime - flightLeadMs;
+
+            if (triggerTime > now) {
+              const leadText = formatLeadTime(flightLeadMinutes);
+              const legFlightName = conn.flightName ? ` (${conn.flightName})` : flightName;
+              const legTitle = flightDetails.connections.length > 1
+                ? `✈️ Upcoming Flight Leg ${i + 1}${legFlightName}`
+                : `✈️ Upcoming Flight${flightName}`;
+
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: legTitle,
+                  body: `Flight from ${conn.from} to ${conn.to} departs in ${leadText}. Check terminals & passports!`,
+                  data: { tripId: trip.id, entryId: entry.id, legIndex: i },
+                  sound: true,
+                  priority: Notifications.AndroidNotificationPriority.HIGH,
+                },
+                trigger: {
+                  type: Notifications.SchedulableTriggerInputTypes.DATE,
+                  date: triggerTime,
+                  channelId: 'default',
+                },
+              }).catch((err) => console.warn('Failed scheduling flight leg notification:', err));
+              scheduledCount++;
+            }
+          }
+        } else if (flightDetails.departureTime) {
+          const depTime = new Date(flightDetails.departureTime).getTime();
+          const triggerTime = depTime - flightLeadMs;
+
+          if (triggerTime > now) {
+            const leadText = formatLeadTime(flightLeadMinutes);
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: `✈️ Upcoming Flight${flightName}`,
+                body: `Flight from ${flightDetails.from} to ${flightDetails.to} departs in ${leadText}. Check terminals & passports!`,
+                data: { tripId: trip.id, entryId: entry.id },
+                sound: true,
+                priority: Notifications.AndroidNotificationPriority.HIGH,
+              },
+              trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: triggerTime,
+                channelId: 'default',
+              },
+            }).catch((err) => console.warn('Failed scheduling flight notification:', err));
+            scheduledCount++;
+          }
         }
       }
 
@@ -258,15 +307,69 @@ export async function scheduleTripNotifications(
 }
 
 /**
+ * Fully synchronizes all offline notifications across all active trips and entries.
+ * Handles additions, modifications, cancellations, and settings changes.
+ */
+export async function syncAllNotifications(
+  trips: Trip[],
+  entries: ItineraryEntry[],
+  settings?: AppSettings
+): Promise<number> {
+  const Notifications = getNotifications();
+  if (!Notifications) return 0;
+
+  try {
+    // If user disabled notifications in settings, cancel all and return
+    if (settings?.notificationSettings?.enabled === false) {
+      await cancelAllTripNotifications();
+      return 0;
+    }
+
+    // Ensure Android notification channel is established
+    await setupAndroidNotificationChannel(Notifications);
+
+    // Active trips that are not cancelled or completed
+    const eligibleTrips = trips.filter(
+      (t) => t.status !== 'CANCELLED' && t.status !== 'COMPLETED'
+    );
+    const eligibleTripIds = new Set(eligibleTrips.map((t) => t.id));
+
+    // Cancel notifications for trips that no longer exist or are completed/cancelled
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+    for (const item of scheduled) {
+      const tripId = item.content?.data?.tripId as string | undefined;
+      if (tripId && !eligibleTripIds.has(tripId)) {
+        await Notifications.cancelScheduledNotificationAsync(item.identifier).catch(() => {});
+      }
+    }
+
+    let totalScheduled = 0;
+    for (const trip of eligibleTrips) {
+      const tripEntries = entries.filter((e) => e.tripId === trip.id);
+      const count = await scheduleTripNotifications(trip, tripEntries, settings);
+      totalScheduled += count;
+    }
+
+    return totalScheduled;
+  } catch (err) {
+    console.warn('Failed to sync all notifications:', err);
+    return 0;
+  }
+}
+
+/**
  * Schedules a local test notification after a 3-second delay
  * to allow immediate verification of sound, banner, and offline alarm delivery.
  */
 export async function sendTestNotification(): Promise<{ success: boolean; message?: string }> {
   const Notifications = getNotifications();
   if (!Notifications) {
+    const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
     return {
       success: false,
-      message: 'expo-notifications native module is not available in this build.',
+      message: isExpoGo
+        ? 'Notifications use Android native AlarmManager which is omitted by Expo in the generic Expo Go app (SDK 52+). It works automatically in a standalone APK or Development Build (npx expo run:android).'
+        : 'expo-notifications native module could not be initialized on this device.',
     };
   }
 
