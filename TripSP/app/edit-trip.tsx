@@ -8,6 +8,7 @@ import {
   ScrollView,
   Platform,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,7 +17,7 @@ import DualModeDatePickerModal from '../src/components/DualModeDatePickerModal';
 import { useApp } from '../src/context/AppContext';
 import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
-import { Trip } from '../src/types';
+import { Trip, TripStatus } from '../src/types';
 import { toLocalDateString } from '../src/utils/date';
 import { CURRENCIES } from '../src/data/exchangeRates';
 import * as Crypto from 'expo-crypto';
@@ -25,7 +26,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 
 export default function EditTripScreen() {
-  const { state, updateTrip } = useApp();
+  const { state, updateTrip, deleteTrip } = useApp();
   const { id } = useLocalSearchParams();
   const trip = state.trips.find(t => t.id === id);
   const router = useRouter();
@@ -35,6 +36,7 @@ export default function EditTripScreen() {
   const [startDate, setStartDate] = useState(trip ? new Date(trip.startDate) : new Date());
   const [endDate, setEndDate] = useState(trip ? new Date(trip.endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
   const [baseCurrency, setBaseCurrency] = useState(trip?.baseCurrency || 'USD');
+  const [status, setStatus] = useState<TripStatus>(trip?.status || 'ACTIVE');
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showCurrencyList, setShowCurrencyList] = useState(false);
@@ -58,10 +60,27 @@ export default function EditTripScreen() {
       startDate: toLocalDateString(startDate),
       endDate: toLocalDateString(endDate),
       baseCurrency,
+      status,
     };
 
     await updateTrip(updatedTrip);
     router.back();
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Delete Trip', 'This will delete the trip and all its entries. Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (trip) {
+            await deleteTrip(trip.id);
+            router.replace('/(tabs)');
+          }
+        },
+      },
+    ]);
   };
 
   const filteredCurrencies = CURRENCIES.filter(
@@ -121,6 +140,41 @@ export default function EditTripScreen() {
               value={name}
               onChangeText={setName}
                           />
+          </View>
+
+          {/* Trip Status */}
+          <View style={styles.field}>
+            <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>
+              Trip Status
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {(['PLANNING', 'ACTIVE', 'COMPLETED', 'POSTPONED', 'CANCELLED'] as TripStatus[]).map((s) => {
+                const isSelected = status === s;
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      backgroundColor: isSelected ? (s === 'PLANNING' ? '#8B5CF6' : colors.primary) : colors.inputBg,
+                      borderColor: isSelected ? (s === 'PLANNING' ? '#8B5CF6' : colors.primary) : colors.inputBorder,
+                    }}
+                    onPress={() => setStatus(s)}
+                  >
+                    <Text
+                      style={[
+                        Typography.captionSemibold,
+                        { color: isSelected ? '#FFF' : colors.text },
+                      ]}
+                    >
+                      {s}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           {/* Start Date */}
@@ -252,6 +306,17 @@ export default function EditTripScreen() {
               </View>
             )}
           </View>
+
+          {/* Delete Button */}
+          <TouchableOpacity
+            style={[styles.deleteBtn, { backgroundColor: colors.error + '15' }]}
+            onPress={handleDelete}
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.error} />
+            <Text style={[Typography.button, { color: colors.error, marginLeft: 8 }]}>
+              Delete Trip
+            </Text>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -307,5 +372,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
+  },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 40,
   },
 });

@@ -27,6 +27,7 @@ const initialState: AppState = {
     theme: 'dark',
     multiScreenItinerary: false,
     showCardImages: { city: true, hotel: true, attraction: true },
+    showDocumentBadge: true,
     realtimeTimeline: true,
     timeFormat: '12h',
   },

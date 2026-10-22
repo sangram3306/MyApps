@@ -10,6 +10,8 @@ import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
 import { ItineraryEntry } from '../src/types';
 import TimelineItem from '../src/components/TimelineItem';
+import FAB from '../src/components/FAB';
+import CityDiyModal from '../src/components/CityDiyModal';
 import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '../src/storage/asyncStorage';
 
 // Re-use types from itinerary
@@ -38,6 +40,7 @@ export default function CityDetailsScreen() {
   const colors = Colors[state.settings.theme];
 
   const [showPrices, setShowPrices] = useState(true);
+  const [showDiyModal, setShowDiyModal] = useState(false);
   const [collapsedHotels, setCollapsedHotels] = useState<Set<string>>(new Set());
   const [cityImageMap, setCityImageMap] = useState<Record<string, string>>({});
   const [entryImageMap, setEntryImageMap] = useState<Record<string, string>>({});
@@ -392,13 +395,26 @@ export default function CityDetailsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-          <View style={{ paddingHorizontal: 16, marginTop: 60, backgroundColor: 'rgba(0,0,0,0.35)', paddingTop: 20, paddingBottom: 16 }}>
-            <Text style={[Typography.h1, { color: '#FFF', fontSize: 32, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }]} numberOfLines={1}>
-              {params.cityName}
-            </Text>
-            <Text style={[Typography.caption, { color: 'rgba(255,255,255,0.9)', marginTop: 4 }]}>
-              {cityEntries.length} {cityEntries.length === 1 ? 'entry' : 'entries'} planned
-            </Text>
+          <View style={{ paddingHorizontal: 16, marginTop: 60, backgroundColor: 'rgba(0,0,0,0.35)', paddingTop: 20, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={[Typography.h1, { color: '#FFF', fontSize: 32, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 }]} numberOfLines={1}>
+                {params.cityName}
+              </Text>
+              <Text style={[Typography.caption, { color: 'rgba(255,255,255,0.9)', marginTop: 4 }]}>
+                {cityEntries.length} {cityEntries.length === 1 ? 'entry' : 'entries'} planned
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.diyBtnOnImage}
+              onPress={() => setShowDiyModal(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="compass" size={14} color="#FFF" />
+              <Text style={[Typography.captionSemibold, { color: '#FFF', marginLeft: 4, fontSize: 12 }]}>
+                DIY
+              </Text>
+            </TouchableOpacity>
           </View>
         </ImageBackground>
       ) : (
@@ -417,6 +433,12 @@ export default function CityDetailsScreen() {
             </View>
           </View>
           <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { backgroundColor: '#F59E0B' + '20' }]}
+              onPress={() => setShowDiyModal(true)}
+            >
+              <Ionicons name="compass" size={14} color="#F59E0B" />
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
               onPress={() => setShowPrices(!showPrices)}
@@ -463,6 +485,28 @@ export default function CityDetailsScreen() {
           />
         )}
       />
+
+      <FAB
+        onPress={() =>
+          router.push({
+            pathname: '/add-entry',
+            params: {
+              tripId: params.tripId,
+              currency: activeTrip.baseCurrency,
+              city: params.cityName,
+            },
+          })
+        }
+        theme={state.settings.theme}
+      />
+
+      <CityDiyModal
+        visible={showDiyModal}
+        onClose={() => setShowDiyModal(false)}
+        cityName={params.cityName}
+        tripId={params.tripId}
+        theme={state.settings.theme}
+      />
     </SafeAreaView>
   );
 }
@@ -493,5 +537,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
+  },
+  diyBtnOnImage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.88)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });

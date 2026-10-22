@@ -6,6 +6,7 @@ import {
   FlatList,
   Alert,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -21,7 +22,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '../../src/storage/asyncStorage';
 import { formatTime } from '../../src/utils/date';
 import EmergencyModal from '../../src/components/EmergencyModal';
+import TripDocumentsModal from '../../src/components/TripDocumentsModal';
 import { scheduleTripNotifications } from '../../src/utils/notifications';
+import { exportItineraryPdf } from '../../src/utils/pdfGenerator';
 
 export interface VirtualItineraryEntry {
   entry: ItineraryEntry;
@@ -48,7 +51,7 @@ export interface OngoingHotelMeta {
 }
 
 export default function ItineraryScreen() {
-  const { state, getActiveTrip, getEntriesForActiveTrip, deleteEntry, updateEntry } = useApp();
+  const { state, getActiveTrip, getEntriesForActiveTrip, deleteEntry, updateEntry, updateTrip } = useApp();
   const router = useRouter();
   const colors = Colors[state.settings.theme];
 
@@ -59,6 +62,8 @@ export default function ItineraryScreen() {
   const [collapsedCities, setCollapsedCities] = useState<Set<string>>(new Set());
   const [showPrices, setShowPrices] = useState(true);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [showTripDocsModal, setShowTripDocsModal] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [cityImageMap, setCityImageMap] = useState<Record<string, string>>({});
   const [entryImageMap, setEntryImageMap] = useState<Record<string, string>>({});
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -653,6 +658,23 @@ export default function ItineraryScreen() {
     );
   }
 
+  const handleExportPdf = async () => {
+    if (!activeTrip) return;
+    try {
+      setIsExportingPdf(true);
+      await exportItineraryPdf({
+        trip: activeTrip,
+        entries,
+        timeFormat: state.settings.timeFormat,
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Alert.alert('Error', 'Failed to generate PDF');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -666,6 +688,25 @@ export default function ItineraryScreen() {
           </Text>
         </View>
         <View style={{ flexDirection: 'row', gap: 6 }}>
+          <TouchableOpacity
+            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '18' }]}
+            onPress={handleExportPdf}
+            disabled={isExportingPdf}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            {isExportingPdf ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="download-outline" size={14} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '18' }]}
+            onPress={() => setShowTripDocsModal(true)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="document-text" size={14} color={colors.primary} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.headerActionBtn, { backgroundColor: colors.error + '18' }]}
             onPress={() => setShowEmergencyModal(true)}
@@ -831,6 +872,21 @@ export default function ItineraryScreen() {
         showAllCountries={false}
         theme={state.settings.theme}
       />
+
+      {activeTrip && (
+        <TripDocumentsModal
+          visible={showTripDocsModal}
+          onClose={() => setShowTripDocsModal(false)}
+          trip={activeTrip}
+          onUpdateDocuments={async (docs) => {
+            await updateTrip({
+              ...activeTrip,
+              documents: docs,
+            });
+          }}
+          theme={state.settings.theme}
+        />
+      )}
     </SafeAreaView>
   );
 }

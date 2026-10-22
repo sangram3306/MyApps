@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, Modal, Dimensions, TextInput, Platform, FlatList, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,18 +20,45 @@ interface DocumentManagerProps {
   documents: DocumentInfo[];
   onChange: (docs: DocumentInfo[]) => void;
   theme: 'light' | 'dark';
+  editable?: boolean;
 }
 
 const { width } = Dimensions.get('window');
 const GRID_ITEM_WIDTH = (width - 40 - 20) / 3; // 3 columns, 40 horizontal padding, 20 gap
 
-export default function DocumentManager({ documents, onChange, theme }: DocumentManagerProps) {
+export default function DocumentManager({ 
+  documents, 
+  onChange, 
+  theme, 
+  editable = true 
+}: DocumentManagerProps) {
   const colors = Colors[theme];
   const [selectedDoc, setSelectedDoc] = useState<DocumentInfo | null>(null);
   const [editingDoc, setEditingDoc] = useState<DocumentInfo | null>(null);
   const [editLabel, setEditLabel] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (editingDoc) {
+      const t1 = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      const t2 = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
+      const t3 = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    }
+  }, [editingDoc]);
 
   const handleAddDocument = async () => {
+    if (!editable) return;
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['image/*', 'application/pdf'],
@@ -64,6 +91,7 @@ export default function DocumentManager({ documents, onChange, theme }: Document
   };
 
   const handleRemoveDocument = (id: string) => {
+    if (!editable) return;
     Alert.alert('Remove Document', 'Are you sure you want to remove this document?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -77,7 +105,7 @@ export default function DocumentManager({ documents, onChange, theme }: Document
   };
 
   const handleSaveLabel = () => {
-    if (editingDoc) {
+    if (editingDoc && editable) {
       onChange(documents.map((doc) => 
         doc.id === editingDoc.id ? { ...doc, name: editLabel.trim() || doc.name } : doc
       ));
@@ -91,10 +119,21 @@ export default function DocumentManager({ documents, onChange, theme }: Document
         <Text style={[Typography.label, { color: colors.textMuted }]}>
           Documents & Attachments
         </Text>
-        <TouchableOpacity onPress={handleAddDocument}>
-          <Text style={[Typography.captionSemibold, { color: colors.primary }]}>+ Add Document</Text>
-        </TouchableOpacity>
+        {editable && (
+          <TouchableOpacity onPress={handleAddDocument}>
+            <Text style={[Typography.captionSemibold, { color: colors.primary }]}>+ Add Document</Text>
+          </TouchableOpacity>
+        )}
       </View>
+
+      {documents.length === 0 && !editable && (
+        <View style={[styles.emptyReadOnlyContainer, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+          <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
+          <Text style={[Typography.caption, { color: colors.textMuted, marginLeft: 8 }]}>
+            No documents attached
+          </Text>
+        </View>
+      )}
       
       <View style={styles.grid}>
         {documents.map((doc) => {
@@ -133,27 +172,37 @@ export default function DocumentManager({ documents, onChange, theme }: Document
                   </View>
                 )}
                 
-                <TouchableOpacity 
-                  style={styles.docLabelContainer}
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    setEditingDoc(doc);
-                    setEditLabel(doc.name);
-                  }}
-                >
-                  <Text style={[Typography.caption, { color: colors.text, fontSize: 10, flex: 1 }]} numberOfLines={1}>
-                    {doc.name}
-                  </Text>
-                  <Ionicons name="pencil" size={10} color={colors.textMuted} style={{ marginLeft: 2 }} />
-                </TouchableOpacity>
+                {editable ? (
+                  <TouchableOpacity 
+                    style={styles.docLabelContainer}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      setEditingDoc(doc);
+                      setEditLabel(doc.name);
+                    }}
+                  >
+                    <Text style={[Typography.caption, { color: colors.text, fontSize: 10, flex: 1 }]} numberOfLines={1}>
+                      {doc.name}
+                    </Text>
+                    <Ionicons name="pencil" size={10} color={colors.textMuted} style={{ marginLeft: 2 }} />
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.docLabelContainer}>
+                    <Text style={[Typography.caption, { color: colors.text, fontSize: 10, flex: 1 }]} numberOfLines={1}>
+                      {doc.name}
+                    </Text>
+                  </View>
+                )}
               </View>
 
-              <TouchableOpacity 
-                style={styles.deleteBadge}
-                onPress={() => handleRemoveDocument(doc.id)}
-              >
-                <Ionicons name="close-circle" size={24} color={colors.error} />
-              </TouchableOpacity>
+              {editable && (
+                <TouchableOpacity 
+                  style={styles.deleteBadge}
+                  onPress={() => handleRemoveDocument(doc.id)}
+                >
+                  <Ionicons name="close-circle" size={24} color={colors.error} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -198,7 +247,18 @@ export default function DocumentManager({ documents, onChange, theme }: Document
       </Modal>
 
       {/* Rename Modal */}
-      <Modal visible={!!editingDoc} animationType="fade" transparent={true} onRequestClose={() => setEditingDoc(null)}>
+      <Modal 
+        visible={!!editingDoc} 
+        animationType="none" 
+        transparent={true} 
+        onRequestClose={() => setEditingDoc(null)}
+        onShow={() => {
+          inputRef.current?.focus();
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 50);
+        }}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
@@ -206,11 +266,13 @@ export default function DocumentManager({ documents, onChange, theme }: Document
           <View style={[styles.renameModal, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text style={[Typography.h3, { color: colors.text, marginBottom: 12 }]}>Rename Document</Text>
             <TextInput
+              ref={inputRef}
               style={[styles.input, { borderColor: colors.inputBorder, color: colors.text, backgroundColor: colors.inputBg }]}
               value={editLabel}
               onChangeText={setEditLabel}
-              autoFocus
-              selectTextOnFocus
+              autoFocus={true}
+              selectTextOnFocus={true}
+              showSoftInputOnFocus={true}
             />
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16, gap: 12 }}>
               <TouchableOpacity onPress={() => setEditingDoc(null)} style={{ paddingVertical: 8, paddingHorizontal: 16 }}>
@@ -231,6 +293,14 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 10,
     paddingHorizontal: 20,
+  },
+  emptyReadOnlyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   grid: {
     flexDirection: 'row',

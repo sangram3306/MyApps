@@ -17,7 +17,19 @@ export interface CustomCategory {
   color: string;
 }
 
-export type TripStatus = 'ACTIVE' | 'CANCELLED' | 'COMPLETED' | 'POSTPONED';
+export type TripStatus = 'PLANNING' | 'ACTIVE' | 'CANCELLED' | 'COMPLETED' | 'POSTPONED';
+
+export type TripDocumentCategory = 'PASSPORT' | 'VISA' | 'ID_CARD' | 'INSURANCE' | 'OTHER';
+
+export interface TripDocument {
+  id: string;
+  name: string;
+  uri: string;
+  type: string;
+  category?: TripDocumentCategory;
+  notes?: string;
+  createdAt?: string;
+}
 
 // Trip model
 export interface Trip {
@@ -28,6 +40,7 @@ export interface Trip {
   baseCurrency: string; // e.g. "USD"
   createdAt: string;   // ISO datetime
   status?: TripStatus; // default is assumed 'ACTIVE'
+  documents?: TripDocument[];
 }
 
 // Itinerary entry model
@@ -80,6 +93,7 @@ export interface ItineraryEntry {
   attractionDetails?: {
     startTime: string; // ISO datetime
     endTime: string;   // ISO datetime
+    link?: string;
   };
   transportDetails?: {
     startTime: string; // ISO datetime
@@ -98,13 +112,17 @@ export interface AppSettings {
     hotel: boolean;
     attraction: boolean;
   };
+  showDocumentBadge?: boolean;
   realtimeTimeline?: boolean;
   timeFormat?: '12h' | '24h';
   notificationSettings?: {
     enabled: boolean;
     flightReminders: boolean;
+    flightLeadMinutes?: number; // default: 180 (3 hours)
     hotelReminders: boolean;
+    hotelLeadMinutes?: number; // default: 60 (1 hour)
     activityReminders: boolean;
+    activityLeadMinutes?: number; // default: 30 (30 mins)
   };
 }
 

@@ -41,6 +41,7 @@ export default function TripCard({
 
   const getBadgeColor = () => {
     switch (trip.status) {
+      case 'PLANNING': return '#8B5CF6';
       case 'COMPLETED': return '#4CAF50';
       case 'CANCELLED': return '#F44336';
       case 'POSTPONED': return '#FF9800';

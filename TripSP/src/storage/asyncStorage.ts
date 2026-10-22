@@ -22,6 +22,7 @@ const FILE_NAMES = {
   CITY_IMAGES: 'city_images.json',
   ENTRY_IMAGES: 'entry_images.json',
   CUSTOM_CATEGORIES: 'custom_categories.json',
+  CITY_DIY_NOTES: 'city_diy_notes.json',
 };
 
 // Default settings
@@ -31,7 +32,17 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   multiScreenItinerary: false,
   showCardImages: { city: true, hotel: true, attraction: true },
+  showDocumentBadge: true,
   timeFormat: '12h',
+  notificationSettings: {
+    enabled: true,
+    flightReminders: true,
+    flightLeadMinutes: 180,
+    hotelReminders: true,
+    hotelLeadMinutes: 60,
+    activityReminders: true,
+    activityLeadMinutes: 30,
+  },
 };
 
 // ─── File Helpers ───────────────────────────────────
@@ -353,4 +364,26 @@ export async function importAllData(jsonString: string): Promise<boolean> {
     console.error("Error importing data", error);
     return false;
   }
+}
+
+export interface CityDiyItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface CityDiyData {
+  notes: string;
+  checklist: CityDiyItem[];
+}
+
+export async function getCityDiyData(key: string): Promise<CityDiyData> {
+  const map = await readJSON<Record<string, CityDiyData>>(FILE_NAMES.CITY_DIY_NOTES, {});
+  return map[key] || { notes: '', checklist: [] };
+}
+
+export async function saveCityDiyData(key: string, data: CityDiyData): Promise<void> {
+  const map = await readJSON<Record<string, CityDiyData>>(FILE_NAMES.CITY_DIY_NOTES, {});
+  map[key] = data;
+  await writeJSON(FILE_NAMES.CITY_DIY_NOTES, map);
 }

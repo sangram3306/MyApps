@@ -19,6 +19,13 @@
     "android": {
       "backgroundColor": "#030F13",
       "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM",
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ],
       "splash": {
         "backgroundColor": "#030F13"
       },
@@ -44,7 +51,14 @@
       ],
       "expo-sharing",
       "@react-native-community/datetimepicker",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/TripSP-Logo.png",
+          "color": "#6C63FF",
+          "defaultChannel": "default"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

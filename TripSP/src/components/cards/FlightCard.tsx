@@ -61,28 +61,38 @@ export default function FlightCard({
   const displayTitle = entry.title === defaultTitle ? '' : entry.title;
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.card,
-        { backgroundColor: bodyBg, borderColor: meta.color + (theme === 'dark' ? '40' : '30') },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      {/* Top Header Block - Solid Color */}
-      <View style={[styles.solidHeader, { backgroundColor: headerBg }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
-          <Ionicons name="airplane" size={14} color="#FFF" />
-          <Text style={[Typography.captionSemibold, { color: '#FFF', marginLeft: 6, letterSpacing: 1.5, fontSize: 10, flexShrink: 1 }]} numberOfLines={1}>
-            {flightType === 'international' ? 'INTERNATIONAL FLIGHT' : 'DOMESTIC FLIGHT'}
-          </Text>
+    <View style={styles.cardContainer}>
+      <TouchableOpacity
+        style={[
+          styles.card,
+          { backgroundColor: bodyBg, borderColor: meta.color + (theme === 'dark' ? '40' : '30') },
+        ]}
+        onPress={onPress}
+        activeOpacity={0.9}
+      >
+        {/* Top Header Block - Solid Color */}
+        <View style={[styles.solidHeader, { backgroundColor: headerBg }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
+            <Ionicons name="airplane" size={14} color="#FFF" />
+            <Text style={[Typography.captionSemibold, { color: '#FFF', marginLeft: 6, letterSpacing: 1.5, fontSize: 10, flexShrink: 1 }]} numberOfLines={1}>
+              {flightType === 'international' ? 'INTERNATIONAL FLIGHT' : 'DOMESTIC FLIGHT'}
+            </Text>
+          </View>
+          {showPrice !== false && entry.price > 0 && (
+            <Text
+              style={[
+                Typography.captionSemibold,
+                {
+                  color: '#FFF',
+                  fontSize: 12,
+                  marginRight: (entry.documents && entry.documents.length > 0 && (state.settings.showDocumentBadge ?? true)) ? 24 : 0,
+                },
+              ]}
+            >
+              {formatCurrency(displayPrice, primaryCurrency)}
+            </Text>
+          )}
         </View>
-        {showPrice !== false && entry.price > 0 && (
-          <Text style={[Typography.captionSemibold, { color: '#FFF', fontSize: 12 }]}>
-            {formatCurrency(displayPrice, primaryCurrency)}
-          </Text>
-        )}
-      </View>
 
       {/* Ticket Body */}
       <View style={styles.body}>
@@ -124,7 +134,7 @@ export default function FlightCard({
 
         {/* Direct Flight info: 3-column layout aligned with departure, center, and arrival */}
         {!isConnecting && (!!flightName || !!departureTerminal || !!arrivalTerminal) && (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, marginBottom: (!!displayTitle || (entry.documents && entry.documents.length > 0)) ? 10 : 2 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2, marginBottom: !!displayTitle ? 10 : 2 }}>
             <View style={{ flex: 1, alignItems: 'flex-start' }}>
               {!!departureTerminal && (
                 <Text style={[Typography.caption, { color: colors.textSecondary, fontSize: 10.5 }]} numberOfLines={1}>
@@ -151,20 +161,18 @@ export default function FlightCard({
           </View>
         )}
 
-        {/* Separator only if extra details exist below (custom title or attached documents) */}
-        {(!!displayTitle || (entry.documents && entry.documents.length > 0)) && (
+        {/* Separator only if extra custom title exists below */}
+        {!!displayTitle && (
           <View style={[styles.dashedSeparator, { borderColor: colors.border, marginBottom: 8 }]} />
         )}
 
         {!!displayTitle && (
           <View style={{ marginTop: 10 }}>
-            <Text style={[Typography.caption, { color: colors.textMuted, fontSize: 11, paddingRight: 8 }]} numberOfLines={1}>
+            <Text style={[Typography.caption, { color: colors.textMuted, fontSize: 11, paddingRight: 8 }]}>
               {displayTitle}
             </Text>
           </View>
         )}
-
-        <DocumentPills documents={entry.documents} theme={theme} />
 
         {/* Expandable Layover Details */}
         {isConnecting && (
@@ -238,15 +246,25 @@ export default function FlightCard({
         )}
       </View>
     </TouchableOpacity>
+
+      {/* Floating notification badge on top-right corner */}
+      {entry.documents && entry.documents.length > 0 && (
+        <DocumentPills documents={entry.documents} theme={theme} style={styles.cornerBadge} />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
+  cardContainer: {
     flex: 1,
     marginRight: 16,
     marginBottom: 12,
     marginTop: 4,
+    position: 'relative',
+  },
+  card: {
+    flex: 1,
     borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
@@ -254,6 +272,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 6,
     elevation: 3,
+  },
+  cornerBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    zIndex: 10,
   },
   solidHeader: {
     flexDirection: 'row',

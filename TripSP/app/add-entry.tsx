@@ -87,6 +87,7 @@ export default function AddEntryScreen() {
   // Attraction-specific states
   const [attractionStartTime, setAttractionStartTime] = useState(new Date());
   const [attractionEndTime, setAttractionEndTime] = useState(new Date(new Date().setHours(new Date().getHours() + 2)));
+  const [attractionLink, setAttractionLink] = useState('');
   const [showAttractionStartTime, setShowAttractionStartTime] = useState(false);
   const [showAttractionEndTime, setShowAttractionEndTime] = useState(false);
 
@@ -199,6 +200,7 @@ export default function AddEntryScreen() {
         attractionDetails: {
           startTime: new Date(new Date(date).setHours(attractionStartTime.getHours(), attractionStartTime.getMinutes())).toISOString(),
           endTime: new Date(new Date(date).setHours(attractionEndTime.getHours(), attractionEndTime.getMinutes())).toISOString(),
+          link: attractionLink.trim() || undefined,
         }
       }),
       ...(type === 'transport' && {
@@ -860,6 +862,26 @@ export default function AddEntryScreen() {
                 onConfirm={(d) => setAttractionEndTime(d)}
                 onClose={() => setShowAttractionEndTime(false)}
               />
+
+              {/* Website / Booking Link */}
+              <View style={{ marginTop: 10 }}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 6 }]}>
+                  Website / Booking Link (Optional)
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: 10, paddingHorizontal: 10 }}>
+                  <Ionicons name="link-outline" size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                  <TextInput
+                    style={{ flex: 1, color: colors.text, height: 40, fontSize: 13 }}
+                    placeholder="e.g., https://booking.com or museum.org"
+                    placeholderTextColor={colors.textMuted}
+                    value={attractionLink}
+                    onChangeText={setAttractionLink}
+                    keyboardType="url"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
             </View>
           )}
 

@@ -24,7 +24,42 @@ import { CURRENCIES } from '../../src/data/exchangeRates';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
 import { exportAllData, importAllData } from '../../src/storage/asyncStorage';
 import EmergencyModal from '../../src/components/EmergencyModal';
-import { requestNotificationPermissions } from '../../src/utils/notifications';
+import { requestNotificationPermissions, formatLeadTime, scheduleTripNotifications, sendTestNotification } from '../../src/utils/notifications';
+import AlertTimingModal, { AlertPreset } from '../../src/components/AlertTimingModal';
+
+const FLIGHT_PRESETS: AlertPreset[] = [
+  { label: '30 minutes before', minutes: 30 },
+  { label: '1 hour before', minutes: 60 },
+  { label: '2 hours before', minutes: 120 },
+  { label: '3 hours before', minutes: 180, isDefault: true },
+  { label: '4 hours before', minutes: 240 },
+  { label: '5 hours before', minutes: 300 },
+  { label: '6 hours before', minutes: 360 },
+  { label: '12 hours before', minutes: 720 },
+  { label: '24 hours (1 day) before', minutes: 1440 },
+];
+
+const HOTEL_PRESETS: AlertPreset[] = [
+  { label: '15 minutes before', minutes: 15 },
+  { label: '30 minutes before', minutes: 30 },
+  { label: '45 minutes before', minutes: 45 },
+  { label: '1 hour before', minutes: 60, isDefault: true },
+  { label: '1.5 hours before', minutes: 90 },
+  { label: '2 hours before', minutes: 120 },
+  { label: '3 hours before', minutes: 180 },
+  { label: '4 hours before', minutes: 240 },
+];
+
+const ACTIVITY_PRESETS: AlertPreset[] = [
+  { label: '10 minutes before', minutes: 10 },
+  { label: '15 minutes before', minutes: 15 },
+  { label: '30 minutes before', minutes: 30, isDefault: true },
+  { label: '45 minutes before', minutes: 45 },
+  { label: '1 hour before', minutes: 60 },
+  { label: '1.5 hours before', minutes: 90 },
+  { label: '2 hours before', minutes: 120 },
+  { label: '3 hours before', minutes: 180 },
+];
 
 
 function OfflineRatesEditor({
@@ -114,13 +149,18 @@ function OfflineRatesEditor({
 }
 
 export default function SettingsScreen() {
-  const { state, updateSettings, updateExchangeRates } = useApp();
+  const { state, updateSettings, updateExchangeRates, getActiveTrip, getEntriesForActiveTrip } = useApp();
   const colors = Colors[state.settings.theme];
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [editingCurrencyIndex, setEditingCurrencyIndex] = useState<number | null>(null);
   const [isProcessingData, setIsProcessingData] = useState(false);
   const [showImagesExpanded, setShowImagesExpanded] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [timingModalType, setTimingModalType] = useState<'flight' | 'hotel' | 'activity' | null>(null);
+
+  const flightLeadMinutes = state.settings.notificationSettings?.flightLeadMinutes ?? 180;
+  const hotelLeadMinutes = state.settings.notificationSettings?.hotelLeadMinutes ?? 60;
+  const activityLeadMinutes = state.settings.notificationSettings?.activityLeadMinutes ?? 30;
 
   const handleExportData = async () => {
     try {
@@ -330,6 +370,27 @@ export default function SettingsScreen() {
             />
           </View>
 
+          {/* Document Badge Toggle */}
+          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
+                <Ionicons name="attach" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>Document Badges</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Show document count badge on cards
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={state.settings.showDocumentBadge ?? true}
+              onValueChange={(value) => updateSettings({ showDocumentBadge: value })}
+              trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+              thumbColor={(state.settings.showDocumentBadge ?? true) ? colors.primary : colors.textMuted}
+            />
+          </View>
+
           {/* Show Card Images Group */}
           <TouchableOpacity
             style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}
@@ -439,17 +500,36 @@ export default function SettingsScreen() {
           {(state.settings.notificationSettings?.enabled ?? true) && (
             <>
               <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
-                <View style={styles.rowLeft}>
+                <TouchableOpacity
+                  style={styles.rowLeft}
+                  onPress={() => setTimingModalType('flight')}
+                  activeOpacity={0.7}
+                >
                   <View style={[styles.iconCircle, { backgroundColor: colors.flight + '20' }]}>
                     <Ionicons name="airplane-outline" size={18} color={colors.flight} />
                   </View>
                   <View style={styles.rowText}>
                     <Text style={[Typography.bodyMedium, { color: colors.text }]}>Flight Departure Alert</Text>
-                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                      3 hours before flight departure
+                    <Text
+                      style={[
+                        Typography.caption,
+                        {
+                          color: (state.settings.notificationSettings?.flightReminders ?? true)
+                            ? colors.flight
+                            : colors.textSecondary,
+                          marginTop: 2,
+                        },
+                      ]}
+                    >
+                      {formatLeadTime(flightLeadMinutes)} before flight departure{' '}
+                      <Ionicons
+                        name="pencil-sharp"
+                        size={11}
+                        color={(state.settings.notificationSettings?.flightReminders ?? true) ? colors.flight : colors.textMuted}
+                      />
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
                 <Switch
                   value={state.settings.notificationSettings?.flightReminders ?? true}
                   onValueChange={(val) =>
@@ -471,17 +551,36 @@ export default function SettingsScreen() {
               </View>
 
               <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
-                <View style={styles.rowLeft}>
+                <TouchableOpacity
+                  style={styles.rowLeft}
+                  onPress={() => setTimingModalType('hotel')}
+                  activeOpacity={0.7}
+                >
                   <View style={[styles.iconCircle, { backgroundColor: colors.hotel + '20' }]}>
                     <Ionicons name="bed-outline" size={18} color={colors.hotel} />
                   </View>
                   <View style={styles.rowText}>
                     <Text style={[Typography.bodyMedium, { color: colors.text }]}>Hotel Checkout Alert</Text>
-                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                      1 hour before scheduled checkout
+                    <Text
+                      style={[
+                        Typography.caption,
+                        {
+                          color: (state.settings.notificationSettings?.hotelReminders ?? true)
+                            ? colors.hotel
+                            : colors.textSecondary,
+                          marginTop: 2,
+                        },
+                      ]}
+                    >
+                      {formatLeadTime(hotelLeadMinutes)} before checkout{' '}
+                      <Ionicons
+                        name="pencil-sharp"
+                        size={11}
+                        color={(state.settings.notificationSettings?.hotelReminders ?? true) ? colors.hotel : colors.textMuted}
+                      />
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
                 <Switch
                   value={state.settings.notificationSettings?.hotelReminders ?? true}
                   onValueChange={(val) =>
@@ -502,18 +601,37 @@ export default function SettingsScreen() {
                 />
               </View>
 
-              <View style={[styles.row, { borderBottomColor: 'transparent' }]}>
-                <View style={styles.rowLeft}>
+              <View style={[styles.row, { borderBottomColor: colors.borderLight }]}>
+                <TouchableOpacity
+                  style={styles.rowLeft}
+                  onPress={() => setTimingModalType('activity')}
+                  activeOpacity={0.7}
+                >
                   <View style={[styles.iconCircle, { backgroundColor: colors.attraction + '20' }]}>
                     <Ionicons name="ticket-outline" size={18} color={colors.attraction} />
                   </View>
                   <View style={styles.rowText}>
                     <Text style={[Typography.bodyMedium, { color: colors.text }]}>Activity & Attraction Alert</Text>
-                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
-                      30 minutes before booking start
+                    <Text
+                      style={[
+                        Typography.caption,
+                        {
+                          color: (state.settings.notificationSettings?.activityReminders ?? true)
+                            ? colors.attraction
+                            : colors.textSecondary,
+                          marginTop: 2,
+                        },
+                      ]}
+                    >
+                      {formatLeadTime(activityLeadMinutes)} before booking start{' '}
+                      <Ionicons
+                        name="pencil-sharp"
+                        size={11}
+                        color={(state.settings.notificationSettings?.activityReminders ?? true) ? colors.attraction : colors.textMuted}
+                      />
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
                 <Switch
                   value={state.settings.notificationSettings?.activityReminders ?? true}
                   onValueChange={(val) =>
@@ -533,6 +651,37 @@ export default function SettingsScreen() {
                   thumbColor={(state.settings.notificationSettings?.activityReminders ?? true) ? colors.primary : colors.textMuted}
                 />
               </View>
+
+              <TouchableOpacity
+                style={[styles.row, { borderBottomColor: 'transparent', backgroundColor: colors.primary + '08' }]}
+                onPress={async () => {
+                  const res = await sendTestNotification();
+                  if (res.success) {
+                    Alert.alert(
+                      'Test Alert Scheduled! 🔔',
+                      'A test notification will trigger in 3 seconds. You can lock or minimize your phone now to test the alert and banner.'
+                    );
+                  } else {
+                    Alert.alert('Notification Test', res.message || 'Could not schedule test notification.');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
+                    <Ionicons name="notifications" size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.rowText}>
+                    <Text style={[Typography.bodyMedium, { color: colors.primary, fontWeight: '600' }]}>
+                      Send Test Notification
+                    </Text>
+                    <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                      Triggers a local offline alert in 3 seconds
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              </TouchableOpacity>
             </>
           )}
         </View>
@@ -785,6 +934,77 @@ export default function SettingsScreen() {
         onClose={() => setShowEmergencyModal(false)}
         tripName={state.trips.find((t) => t.id === state.activeTripId)?.name}
         showAllCountries={true}
+        theme={state.settings.theme}
+      />
+
+      <AlertTimingModal
+        visible={timingModalType !== null}
+        onClose={() => setTimingModalType(null)}
+        title={
+          timingModalType === 'flight'
+            ? 'Flight Departure Alert'
+            : timingModalType === 'hotel'
+            ? 'Hotel Checkout Alert'
+            : 'Activity & Attraction Alert'
+        }
+        subtitle={
+          timingModalType === 'flight'
+            ? 'Select reminder timing before your flight departs'
+            : timingModalType === 'hotel'
+            ? 'Select reminder timing before hotel checkout time'
+            : 'Select reminder timing before your activity starts'
+        }
+        icon={
+          timingModalType === 'flight'
+            ? 'airplane'
+            : timingModalType === 'hotel'
+            ? 'bed'
+            : 'ticket'
+        }
+        accentColor={
+          timingModalType === 'flight'
+            ? colors.flight
+            : timingModalType === 'hotel'
+            ? colors.hotel
+            : colors.attraction
+        }
+        currentMinutes={
+          timingModalType === 'flight'
+            ? flightLeadMinutes
+            : timingModalType === 'hotel'
+            ? hotelLeadMinutes
+            : activityLeadMinutes
+        }
+        presets={
+          timingModalType === 'flight'
+            ? FLIGHT_PRESETS
+            : timingModalType === 'hotel'
+            ? HOTEL_PRESETS
+            : ACTIVITY_PRESETS
+        }
+        onSave={(minutes) => {
+          const updatedNotificationSettings = {
+            ...(state.settings.notificationSettings || {
+              enabled: true,
+              flightReminders: true,
+              hotelReminders: true,
+              activityReminders: true,
+            }),
+            ...(timingModalType === 'flight' && { flightLeadMinutes: minutes }),
+            ...(timingModalType === 'hotel' && { hotelLeadMinutes: minutes }),
+            ...(timingModalType === 'activity' && { activityLeadMinutes: minutes }),
+          };
+          updateSettings({
+            notificationSettings: updatedNotificationSettings,
+          });
+          const activeTrip = getActiveTrip();
+          if (activeTrip) {
+            scheduleTripNotifications(activeTrip, getEntriesForActiveTrip(), {
+              ...state.settings,
+              notificationSettings: updatedNotificationSettings,
+            });
+          }
+        }}
         theme={state.settings.theme}
       />
     </SafeAreaView>

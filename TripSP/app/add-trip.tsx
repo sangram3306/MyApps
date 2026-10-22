@@ -16,7 +16,7 @@ import DualModeDatePickerModal from '../src/components/DualModeDatePickerModal';
 import { useApp } from '../src/context/AppContext';
 import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
-import { Trip } from '../src/types';
+import { Trip, TripStatus } from '../src/types';
 import { toLocalDateString } from '../src/utils/date';
 import { CURRENCIES } from '../src/data/exchangeRates';
 import * as Crypto from 'expo-crypto';
@@ -30,6 +30,7 @@ export default function AddTripScreen() {
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
   const [baseCurrency, setBaseCurrency] = useState('USD');
+  const [status, setStatus] = useState<TripStatus>('PLANNING');
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showCurrencyList, setShowCurrencyList] = useState(false);
@@ -53,6 +54,7 @@ export default function AddTripScreen() {
       startDate: toLocalDateString(startDate),
       endDate: toLocalDateString(endDate),
       baseCurrency,
+      status,
       createdAt: new Date().toISOString(),
     };
 
@@ -119,6 +121,41 @@ export default function AddTripScreen() {
               onChangeText={setName}
               autoFocus
             />
+          </View>
+
+          {/* Trip Status */}
+          <View style={styles.field}>
+            <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>
+              Trip Status
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {(['PLANNING', 'ACTIVE', 'COMPLETED', 'POSTPONED', 'CANCELLED'] as TripStatus[]).map((s) => {
+                const isSelected = status === s;
+                return (
+                  <TouchableOpacity
+                    key={s}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      backgroundColor: isSelected ? (s === 'PLANNING' ? '#8B5CF6' : colors.primary) : colors.inputBg,
+                      borderColor: isSelected ? (s === 'PLANNING' ? '#8B5CF6' : colors.primary) : colors.inputBorder,
+                    }}
+                    onPress={() => setStatus(s)}
+                  >
+                    <Text
+                      style={[
+                        Typography.captionSemibold,
+                        { color: isSelected ? '#FFF' : colors.text },
+                      ]}
+                    >
+                      {s}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           {/* Start Date */}

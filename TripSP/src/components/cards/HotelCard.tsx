@@ -96,7 +96,7 @@ export default function HotelCard({
 
       {/* Main Content */}
       <View>
-        <Text style={[Typography.h2, { color: entryImageUri ? '#FFF' : colors.text, fontSize: 22, ...(entryImageUri ? { textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 } : {}) }]} numberOfLines={1}>
+        <Text style={[Typography.h2, { color: entryImageUri ? '#FFF' : colors.text, fontSize: 22, ...(entryImageUri ? { textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 } : {}) }]}>
           {details?.name || 'Hotel'}
         </Text>
         
@@ -140,17 +140,6 @@ export default function HotelCard({
             </View>
         </View>
 
-        {!isCheckOutNode && !entryImageUri && <DocumentPills documents={entry.documents} theme={theme} />}
-
-        {isSummary && collapsedSummary && (
-          <View style={[styles.collapsedSummaryChip, { backgroundColor: entryImageUri ? 'rgba(0,0,0,0.4)' : accentColor + '15', borderColor: entryImageUri ? 'rgba(255,255,255,0.3)' : accentColor + '30' }]}>
-            <Ionicons name="layers-outline" size={12} color={entryImageUri ? '#FFF' : accentColor} />
-            <Text style={[Typography.captionSemibold, { color: entryImageUri ? '#FFF' : accentColor, marginLeft: 6 }]}>
-              {collapsedSummary}
-            </Text>
-          </View>
-        )}
-
         {showPrice !== false && entry.price > 0 && !isCheckOutNode && !isCollapsed && (
           <View style={{ marginTop: 12, alignItems: 'flex-end' }}>
             <Text style={[Typography.h2, { color: entryImageUri ? '#FFF' : accentColor, ...(entryImageUri ? { textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 } : {}) }]}>
@@ -163,7 +152,7 @@ export default function HotelCard({
   );
 
   return (
-    <>
+    <View style={styles.cardContainer}>
       <TouchableOpacity
         style={[
           styles.card,
@@ -188,6 +177,11 @@ export default function HotelCard({
           </View>
         )}
       </TouchableOpacity>
+
+      {/* Floating notification badge on top-right corner */}
+      {entry.documents && entry.documents.length > 0 && (
+        <DocumentPills documents={entry.documents} theme={theme} style={styles.cornerBadge} />
+      )}
 
       <TaxiDriverCardModal
         visible={showTaxiModal}
@@ -214,11 +208,18 @@ export default function HotelCard({
         }}
         theme={theme}
       />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    flex: 1,
+    marginRight: 16,
+    marginBottom: 12,
+    marginTop: 4,
+    position: 'relative',
+  },
   taxiCardBtn: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -230,9 +231,6 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    marginRight: 16,
-    marginBottom: 12,
-    marginTop: 4,
     borderRadius: 20,
     borderWidth: 1,
     padding: 16,
@@ -240,6 +238,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+  },
+  cornerBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    zIndex: 10,
   },
   iconWrapper: {
     width: 28,

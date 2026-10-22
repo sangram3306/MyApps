@@ -29,7 +29,7 @@ export default function TripsScreen() {
     router.push('/(tabs)/itinerary');
   };
 
-    const handleTripLongPress = (trip: any) => {
+  const handleTripLongPress = (trip: any) => {
     const showDeleteConfirm = () => {
       Alert.alert('Delete Trip', 'This will delete the trip and all its entries. Are you sure?', [
         { text: 'Cancel', style: 'cancel' },
@@ -37,57 +37,19 @@ export default function TripsScreen() {
       ]);
     };
 
-    const showStatusOptions = () => {
-      if (Platform.OS === 'ios') {
-        ActionSheetIOS.showActionSheetWithOptions(
-          {
-            options: ['Cancel', 'ACTIVE', 'COMPLETED', 'POSTPONED', 'CANCELLED'],
-            cancelButtonIndex: 0,
-            destructiveButtonIndex: 4,
-            title: 'Change Trip Status'
-          },
-          (idx) => {
-            if (idx === 1) updateTrip({ ...trip, status: 'ACTIVE' });
-            if (idx === 2) updateTrip({ ...trip, status: 'COMPLETED' });
-            if (idx === 3) updateTrip({ ...trip, status: 'POSTPONED' });
-            if (idx === 4) updateTrip({ ...trip, status: 'CANCELLED' });
-          }
-        );
-      } else {
-        Alert.alert('Change Status', 'Select a new status:', [
-          { text: 'ACTIVE / COMPLETED', onPress: () => {
-            Alert.alert('Status', 'Select status:', [
-              { text: 'ACTIVE', onPress: () => updateTrip({ ...trip, status: 'ACTIVE' }) },
-              { text: 'COMPLETED', onPress: () => updateTrip({ ...trip, status: 'COMPLETED' }) },
-              { text: 'Cancel', style: 'cancel' }
-            ])
-          }},
-          { text: 'POSTPONED / CANCELLED', onPress: () => {
-            Alert.alert('Status', 'Select status:', [
-              { text: 'POSTPONED', onPress: () => updateTrip({ ...trip, status: 'POSTPONED' }) },
-              { text: 'CANCELLED', onPress: () => updateTrip({ ...trip, status: 'CANCELLED' }) },
-              { text: 'Cancel', style: 'cancel' }
-            ])
-          }},
-          { text: 'Cancel', style: 'cancel' }
-        ]);
-      }
-    };
-
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Cancel', 'Change Status', 'Edit Trip', 'Duplicate Trip', 'Delete'],
+          options: ['Cancel', 'Edit Trip', 'Duplicate Trip', 'Delete Trip'],
           cancelButtonIndex: 0,
-          destructiveButtonIndex: 4,
+          destructiveButtonIndex: 3,
           title: trip.name,
-          message: 'What would you like to do?'
+          message: 'What would you like to do?',
         },
         (idx) => {
-          if (idx === 1) showStatusOptions();
-          if (idx === 2) router.push({ pathname: '/edit-trip', params: { id: trip.id } });
-          if (idx === 3) duplicateTrip(trip.id);
-          if (idx === 4) showDeleteConfirm();
+          if (idx === 1) router.push({ pathname: '/edit-trip', params: { id: trip.id } });
+          if (idx === 2) duplicateTrip(trip.id);
+          if (idx === 3) showDeleteConfirm();
         }
       );
     } else {
@@ -95,22 +57,11 @@ export default function TripsScreen() {
         trip.name,
         'What would you like to do?',
         [
-          { text: 'Edit & Status', onPress: () => {
-            Alert.alert(trip.name, 'Edit or change status:', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Edit Trip', onPress: () => router.push({ pathname: '/edit-trip', params: { id: trip.id } }) },
-              { text: 'Change Status', onPress: showStatusOptions },
-            ]);
-          }},
-          { text: 'Duplicate & Delete', onPress: () => {
-            Alert.alert(trip.name, 'Duplicate or delete trip:', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Duplicate Trip', onPress: () => duplicateTrip(trip.id) },
-              { text: 'Delete', style: 'destructive', onPress: showDeleteConfirm },
-            ]);
-          }},
-          { text: 'Cancel', style: 'cancel' },
-        ]
+          { text: 'Delete', style: 'destructive', onPress: showDeleteConfirm },
+          { text: 'Duplicate', onPress: () => duplicateTrip(trip.id) },
+          { text: 'Edit Trip', onPress: () => router.push({ pathname: '/edit-trip', params: { id: trip.id } }) },
+        ],
+        { cancelable: true }
       );
     }
   };

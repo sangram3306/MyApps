@@ -87,6 +87,7 @@ export default function EditEntryScreen() {
   };
 
   const handlePickImage = () => {
+    if (!isEditing) return;
     if (entryImageUri) {
       Alert.alert(
         'Cover Photo',
@@ -179,6 +180,7 @@ export default function EditEntryScreen() {
   const attractionDetails = existingEntry?.attractionDetails;
   const [attractionStartTime, setAttractionStartTime] = useState(attractionDetails?.startTime ? new Date(attractionDetails.startTime) : new Date());
   const [attractionEndTime, setAttractionEndTime] = useState(attractionDetails?.endTime ? new Date(attractionDetails.endTime) : new Date(new Date().setHours(new Date().getHours() + 2)));
+  const [attractionLink, setAttractionLink] = useState(attractionDetails?.link || '');
   const [showAttractionStartTime, setShowAttractionStartTime] = useState(false);
   const [showAttractionEndTime, setShowAttractionEndTime] = useState(false);
 
@@ -344,6 +346,7 @@ export default function EditEntryScreen() {
         attractionDetails: {
           startTime: new Date(new Date(date).setHours(attractionStartTime.getHours(), attractionStartTime.getMinutes())).toISOString(),
           endTime: new Date(new Date(date).setHours(attractionEndTime.getHours(), attractionEndTime.getMinutes())).toISOString(),
+          link: attractionLink.trim() || undefined,
         }
       }),
       ...(type === 'transport' && {
@@ -402,12 +405,14 @@ export default function EditEntryScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-                <TouchableOpacity
-                  style={{ backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20, alignSelf: 'flex-end', marginRight: 16 }}
-                  onPress={handlePickImage}
-                >
-                  <Ionicons name="camera" size={24} color="#FFF" />
-                </TouchableOpacity>
+                {isEditing && (
+                  <TouchableOpacity
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 20, alignSelf: 'flex-end', marginRight: 16 }}
+                    onPress={handlePickImage}
+                  >
+                    <Ionicons name="camera" size={24} color="#FFF" />
+                  </TouchableOpacity>
+                )}
               </ImageBackground>
             ) : (
               <View style={{ width: '100%', height: '100%', backgroundColor: colors.primary + '10', justifyContent: 'space-between' }}>
@@ -426,15 +431,17 @@ export default function EditEntryScreen() {
                     </TouchableOpacity>
                   )}
                 </View>
-                <View style={{ alignItems: 'center', paddingBottom: 36 }}>
-                  <TouchableOpacity
-                    style={{ backgroundColor: colors.primary + '20', padding: 16, borderRadius: 30, alignItems: 'center' }}
-                    onPress={handlePickImage}
-                  >
-                    <Ionicons name="camera-outline" size={32} color={colors.primary} />
-                    <Text style={[Typography.captionSemibold, { color: colors.primary, marginTop: 8 }]}>Add Cover Photo</Text>
-                  </TouchableOpacity>
-                </View>
+                {isEditing && (
+                  <View style={{ alignItems: 'center', paddingBottom: 36 }}>
+                    <TouchableOpacity
+                      style={{ backgroundColor: colors.primary + '20', padding: 16, borderRadius: 30, alignItems: 'center' }}
+                      onPress={handlePickImage}
+                    >
+                      <Ionicons name="camera-outline" size={32} color={colors.primary} />
+                      <Text style={[Typography.captionSemibold, { color: colors.primary, marginTop: 8 }]}>Add Cover Photo</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -1085,6 +1092,27 @@ export default function EditEntryScreen() {
                 onConfirm={(d) => setAttractionEndTime(d)}
                 onClose={() => setShowAttractionEndTime(false)}
               />
+
+              {/* Website / Booking Link */}
+              <View style={{ marginTop: 10 }}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 6 }]}>
+                  Website / Booking Link (Optional)
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isEditing ? colors.inputBg : 'transparent', borderWidth: isEditing ? 1 : 0, borderColor: isEditing ? colors.inputBorder : 'transparent', borderRadius: 10, paddingHorizontal: isEditing ? 10 : 0 }}>
+                  <Ionicons name="link-outline" size={16} color={colors.textSecondary} style={{ marginRight: 6 }} />
+                  <TextInput
+                    editable={isEditing}
+                    style={{ flex: 1, color: colors.text, height: 40, fontSize: 13 }}
+                    placeholder="e.g., https://booking.com or museum.org"
+                    placeholderTextColor={colors.textMuted}
+                    value={attractionLink}
+                    onChangeText={setAttractionLink}
+                    keyboardType="url"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+              </View>
             </View>
           )}
 
@@ -1198,7 +1226,12 @@ export default function EditEntryScreen() {
             )}
           </View>
 
-          <DocumentManager documents={documents} onChange={setDocuments} theme={state.settings.theme} />
+          <DocumentManager 
+            documents={documents} 
+            onChange={setDocuments} 
+            theme={state.settings.theme} 
+            editable={isEditing}
+          />
 
           {/* Delete Button */}
           <TouchableOpacity
