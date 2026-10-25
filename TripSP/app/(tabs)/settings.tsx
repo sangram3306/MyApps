@@ -391,6 +391,27 @@ export default function SettingsScreen() {
             />
           </View>
 
+          {/* Up Next Status Ticker Toggle */}
+          <View style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: '#10B98120' }]}>
+                <Ionicons name="radio-outline" size={18} color="#10B981" />
+              </View>
+              <View style={styles.rowText}>
+                <Text style={[Typography.bodyMedium, { color: colors.text }]}>"Up Next" Status Ticker</Text>
+                <Text style={[Typography.caption, { color: colors.textSecondary }]}>
+                  Show live activity status & next event ticker
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={state.settings.showUpNextCard ?? true}
+              onValueChange={(value) => updateSettings({ showUpNextCard: value })}
+              trackColor={{ false: colors.borderLight, true: colors.primary + '60' }}
+              thumbColor={(state.settings.showUpNextCard ?? true) ? colors.primary : colors.textMuted}
+            />
+          </View>
+
           {/* Show Card Images Group */}
           <TouchableOpacity
             style={[styles.row, { borderTopWidth: 1, borderTopColor: colors.borderLight }]}

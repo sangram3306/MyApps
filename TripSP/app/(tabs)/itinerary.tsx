@@ -24,6 +24,7 @@ import { formatTime } from '../../src/utils/date';
 import EmergencyModal from '../../src/components/EmergencyModal';
 import TripDocumentsModal from '../../src/components/TripDocumentsModal';
 import { exportItineraryPdf } from '../../src/utils/pdfGenerator';
+import UpNextTicker from '../../src/components/UpNextTicker';
 
 export interface VirtualItineraryEntry {
   entry: ItineraryEntry;
@@ -673,73 +674,97 @@ export default function ItineraryScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={[Typography.h1, { color: colors.text }]} numberOfLines={1}>
-            {activeTrip.name}
-          </Text>
-          <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-            {entries.length} {entries.length === 1 ? 'entry' : 'entries'} planned
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '18' }]}
-            onPress={handleExportPdf}
-            disabled={isExportingPdf}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            {isExportingPdf ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Ionicons name="download-outline" size={14} color={colors.primary} />
+        <View style={styles.headerTopRow}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={[Typography.h1, { color: colors.text }]} numberOfLines={1}>
+              {activeTrip.name}
+            </Text>
+            {!(state.settings.showUpNextCard ?? true) && (
+              <Text style={[Typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+                {entries.length} {entries.length === 1 ? 'entry' : 'entries'} planned
+              </Text>
             )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '18' }]}
-            onPress={() => setShowTripDocsModal(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="document-text" size={14} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: colors.error + '18' }]}
-            onPress={() => setShowEmergencyModal(true)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="shield-checkmark" size={14} color={colors.error} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
-            onPress={() => setShowPrices(!showPrices)}
-          >
-            <Ionicons name={showPrices ? "eye-off-outline" : "eye-outline"} size={14} color={colors.primary} />
-          </TouchableOpacity>
-          {!state.settings.multiScreenItinerary && (
+          </View>
+          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { backgroundColor: colors.primary + '18' }]}
+              onPress={handleExportPdf}
+              disabled={isExportingPdf}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              {isExportingPdf ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Ionicons name="download-outline" size={14} color={colors.primary} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { backgroundColor: colors.primary + '18' }]}
+              onPress={() => setShowTripDocsModal(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="document-text" size={14} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.headerActionBtn, { backgroundColor: colors.error + '18' }]}
+              onPress={() => setShowEmergencyModal(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="shield-checkmark" size={14} color={colors.error} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
-              onPress={() => {
-                const isAnyCollapsed = collapsedCities.size > 0 || collapsedHotels.size > 0;
-                if (isAnyCollapsed) {
-                  setCollapsedCities(new Set());
-                  setCollapsedHotels(new Set());
+              onPress={() => setShowPrices(!showPrices)}
+            >
+              <Ionicons name={showPrices ? "eye-off-outline" : "eye-outline"} size={14} color={colors.primary} />
+            </TouchableOpacity>
+            {!state.settings.multiScreenItinerary && (
+              <TouchableOpacity
+                style={[styles.headerActionBtn, { backgroundColor: colors.primary + '15' }]}
+                onPress={() => {
+                  const isAnyCollapsed = collapsedCities.size > 0 || collapsedHotels.size > 0;
+                  if (isAnyCollapsed) {
+                    setCollapsedCities(new Set());
+                    setCollapsedHotels(new Set());
+                  } else {
+                    const allCities = new Set<string>();
+                    const allHotels = new Set<string>();
+                    cityBlocks.forEach(b => {
+                      if (b.cityName !== 'Unknown City') allCities.add(b.cityName);
+                    });
+                    entries.forEach(e => {
+                      if (e.type === 'hotel') allHotels.add(e.id);
+                    });
+                    setCollapsedCities(allCities);
+                    setCollapsedHotels(allHotels);
+                  }
+                }}
+              >
+                <Ionicons name={(collapsedCities.size > 0 || collapsedHotels.size > 0) ? "expand" : "contract"} size={14} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Extended Full-Width Marquee Ticker */}
+        {(state.settings.showUpNextCard ?? true) ? (
+          <View style={{ marginTop: 8 }}>
+            <UpNextTicker
+              trip={activeTrip}
+              entries={entries}
+              theme={state.settings.theme}
+              timeFormat={state.settings.timeFormat}
+              onPressEntry={(id) => {
+                const entry = entries.find((e) => e.id === id);
+                if (entry) {
+                  handleEntryPress(entry);
                 } else {
-                  const allCities = new Set<string>();
-                  const allHotels = new Set<string>();
-                  cityBlocks.forEach(b => {
-                    if (b.cityName !== 'Unknown City') allCities.add(b.cityName);
-                  });
-                  entries.forEach(e => {
-                    if (e.type === 'hotel') allHotels.add(e.id);
-                  });
-                  setCollapsedCities(allCities);
-                  setCollapsedHotels(allHotels);
+                  router.push({ pathname: '/edit-entry', params: { entryId: id, id } });
                 }
               }}
-            >
-              <Ionicons name={(collapsedCities.size > 0 || collapsedHotels.size > 0) ? "expand" : "contract"} size={14} color={colors.primary} />
-            </TouchableOpacity>
-          )}
-        </View>
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* Timeline */}
@@ -884,12 +909,14 @@ export default function ItineraryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 10,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 12,
   },
   headerActionBtn: {
     width: 32,

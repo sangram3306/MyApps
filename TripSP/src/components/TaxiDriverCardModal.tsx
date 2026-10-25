@@ -30,6 +30,15 @@ interface TaxiDriverCardModalProps {
   theme: 'light' | 'dark';
 }
 
+const isMapLinkOrCoords = (str?: string): boolean => {
+  if (!str) return false;
+  const s = str.trim();
+  if (/^(https?:\/\/)?(maps\.app\.goo\.gl|goo\.gl\/maps|maps\.google\.|google\.[a-z.]+\/maps|maps\.apple\.com|waze\.com)/i.test(s)) return true;
+  if (/^https?:\/\//i.test(s) && (s.includes('maps') || s.includes('geo') || s.includes('location') || s.includes('place'))) return true;
+  if (/^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/.test(s)) return true;
+  return false;
+};
+
 export default function TaxiDriverCardModal({
   visible,
   onClose,
@@ -88,7 +97,7 @@ export default function TaxiDriverCardModal({
   };
 
   const handleOpenMaps = async () => {
-    const rawGps = currentCustomGpsUrl.trim();
+    const rawGps = currentCustomGpsUrl.trim() || (isMapLinkOrCoords(hotelAddress) ? hotelAddress.trim() : '');
 
     if (rawGps) {
       // Check if raw coordinates like "21.0337, 105.8504"
@@ -122,7 +131,7 @@ export default function TaxiDriverCardModal({
     }
 
     // Fallback: standard search query using hotel details
-    const addressToSearch = currentLocalAddress || hotelAddress;
+    const addressToSearch = isMapLinkOrCoords(hotelAddress) ? '' : (currentLocalAddress || hotelAddress);
     const nameToSearch = currentLocalName || hotelName;
     const query = encodeURIComponent(`${nameToSearch} ${addressToSearch} ${hotelCity || ''}`.trim());
     const url = Platform.select({
@@ -251,7 +260,7 @@ export default function TaxiDriverCardModal({
                     <Text style={styles.hotelLocalAddress} selectable>
                       {currentLocalAddress}
                     </Text>
-                    {hotelAddress ? (
+                    {hotelAddress && !isMapLinkOrCoords(hotelAddress) ? (
                       <View style={styles.englishSubAddressBox}>
                         <Text style={styles.englishSubAddressLabel}>ENGLISH:</Text>
                         <Text style={styles.hotelEnglishSubAddress} selectable>
@@ -262,7 +271,9 @@ export default function TaxiDriverCardModal({
                   </>
                 ) : (
                   <Text style={styles.hotelAddress} selectable>
-                    {hotelAddress || 'No street address saved. Tap "+ Add Local Text" at the top to paste the address.'}
+                    {isMapLinkOrCoords(hotelAddress)
+                      ? '📍 GPS Pin / Map Link Saved (Tap "Open GPS Navigation" below)'
+                      : (hotelAddress || 'No street address saved. Tap "+ Add Local / GPS" at the top to paste the address.')}
                   </Text>
                 )}
               </View>
@@ -286,9 +297,9 @@ export default function TaxiDriverCardModal({
                 onPress={handleOpenMaps}
                 activeOpacity={0.85}
               >
-                <Ionicons name={currentCustomGpsUrl ? "location-sharp" : "navigate"} size={20} color="#FFF" />
+                <Ionicons name={(currentCustomGpsUrl || isMapLinkOrCoords(hotelAddress)) ? "location-sharp" : "navigate"} size={20} color="#FFF" />
                 <Text style={styles.openGpsBtnText}>Open GPS Navigation</Text>
-                {currentCustomGpsUrl ? (
+                {(currentCustomGpsUrl || isMapLinkOrCoords(hotelAddress)) ? (
                   <View style={styles.pinBadge}>
                     <Text style={styles.pinBadgeText}>Exact Pin</Text>
                   </View>
@@ -325,7 +336,7 @@ export default function TaxiDriverCardModal({
                 Add native script for the driver and paste your Google Maps link or coordinates for exact GPS navigation:
               </Text>
 
-              <Text style={styles.inputLabel}>HOTEL NAME (LOCAL SCRIPT)</Text>
+              <Text style={styles.inputLabel}>DESTINATION NAME (LOCAL SCRIPT)</Text>
               <TextInput
                 style={styles.textInput}
                 placeholder="e.g. Khách sạn Lồng Đèn Bạc"

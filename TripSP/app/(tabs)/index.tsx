@@ -18,11 +18,15 @@ import { Typography } from '../../src/theme/typography';
 import { formatCurrency, convertCurrency } from '../../src/data/exchangeRates';
 import TripCard from '../../src/components/TripCard';
 import FAB from '../../src/components/FAB';
+import UpNextTicker from '../../src/components/UpNextTicker';
 
 export default function TripsScreen() {
   const { state, setActiveTrip, deleteTrip, updateTrip, duplicateTrip } = useApp();
   const router = useRouter();
   const colors = Colors[state.settings.theme];
+
+  const activeTrip = state.trips.find((t) => t.id === state.activeTripId);
+  const activeTripEntries = activeTrip ? state.entries.filter((e) => e.tripId === activeTrip.id) : [];
 
   const handleTripPress = async (tripId: string) => {
     await setActiveTrip(tripId);
@@ -152,6 +156,43 @@ export default function TripsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            (state.settings.showUpNextCard ?? true) && activeTrip && activeTripEntries.length > 0 ? (
+              <View style={{ marginHorizontal: 20, marginBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[Typography.captionSemibold, { color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 }]}>
+                  {activeTrip.name} • Status
+                </Text>
+                <UpNextTicker
+                  trip={activeTrip}
+                  entries={activeTripEntries}
+                  theme={state.settings.theme}
+                  timeFormat={state.settings.timeFormat}
+                  onPressEntry={(id) => {
+                    const entry = activeTripEntries.find((e) => e.id === id);
+                    if (entry) {
+                      router.push({
+                        pathname: '/edit-entry',
+                        params: {
+                          entryId: entry.id,
+                          id: entry.id,
+                          tripId: entry.tripId,
+                          type: entry.type,
+                          title: entry.title,
+                          date: entry.date,
+                          price: String(entry.price),
+                          currency: entry.currency,
+                          notes: entry.notes,
+                        },
+                      });
+                    } else {
+                      router.push({ pathname: '/edit-entry', params: { entryId: id, id } });
+                    }
+                  }}
+                  maxWidth={200}
+                />
+              </View>
+            ) : undefined
+          }
           renderItem={({ item }) => {
             const { start, end } = getTripDates(item.id, item.startDate, item.endDate);
             return (

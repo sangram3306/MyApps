@@ -33,33 +33,43 @@ export default function EditEntryScreen() {
   const { state, updateEntry, deleteEntry } = useApp();
   const router = useRouter();
   const params = useLocalSearchParams<{
-    entryId: string;
-    tripId: string;
-    type: string;
-    title: string;
-    date: string;
-    price: string;
-    currency: string;
-    notes: string;
+    entryId?: string;
+    id?: string;
+    tripId?: string;
+    type?: string;
+    title?: string;
+    date?: string;
+    price?: string;
+    currency?: string;
+    notes?: string;
   }>();
   const colors = Colors[state.settings.theme];
 
+  const targetEntryId = params.entryId || params.id || '';
+  const existingEntry = state.entries.find(e => e.id === targetEntryId);
+
   const [isEditing, setIsEditing] = useState(false);
-  const [type, setType] = useState<EntryType>((params.type as EntryType) || 'flight');
-  const [title, setTitle] = useState(params.title || '');
-  const [date, setDate] = useState(new Date(params.date + 'T00:00:00' || new Date()));
+  const [type, setType] = useState<EntryType>(existingEntry?.type || (params.type as EntryType) || 'flight');
+  const [title, setTitle] = useState(existingEntry?.title || params.title || '');
+  const [date, setDate] = useState(
+    existingEntry?.date
+      ? new Date(existingEntry.date + 'T00:00:00')
+      : params.date
+      ? new Date(params.date + 'T00:00:00')
+      : new Date()
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [price, setPrice] = useState(params.price || '');
-  const [notes, setNotes] = useState(params.notes || '');
+  const [price, setPrice] = useState(existingEntry?.price !== undefined ? String(existingEntry.price) : params.price || '');
+  const [notes, setNotes] = useState(existingEntry?.notes || params.notes || '');
   const [entryImageUri, setEntryImageUri] = useState<string | null>(null);
 
   React.useEffect(() => {
     getEntryImages().then(map => {
-      if (params.entryId && map[params.entryId]) {
-        setEntryImageUri(map[params.entryId]);
+      if (targetEntryId && map[targetEntryId]) {
+        setEntryImageUri(map[targetEntryId]);
       }
     });
-  }, [params.entryId]);
+  }, [targetEntryId]);
 
   const launchPicker = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -71,14 +81,14 @@ export default function EditEntryScreen() {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
-      const fileName = `entry_img_${encodeURIComponent(params.entryId!)}.jpg`;
+      const fileName = `entry_img_${encodeURIComponent(targetEntryId)}.jpg`;
       const newUri = FileSystem.documentDirectory + fileName;
 
       try {
         await FileSystem.copyAsync({ from: asset.uri, to: newUri });
         setEntryImageUri(newUri);
         const map = await getEntryImages();
-        map[params.entryId!] = newUri;
+        map[targetEntryId] = newUri;
         await saveEntryImages(map);
       } catch (err) {
         console.error('Failed to save entry image', err);
@@ -100,7 +110,7 @@ export default function EditEntryScreen() {
             onPress: async () => {
               setEntryImageUri(null);
               const map = await getEntryImages();
-              delete map[params.entryId!];
+              delete map[targetEntryId];
               await saveEntryImages(map);
             }
           },
@@ -111,8 +121,6 @@ export default function EditEntryScreen() {
       launchPicker();
     }
   };
-
-  const existingEntry = state.entries.find(e => e.id === params.entryId);
   
   const [documents, setDocuments] = useState<any[]>(existingEntry?.documents || []);
   const flightDetails = existingEntry?.flightDetails;
@@ -165,11 +173,8 @@ export default function EditEntryScreen() {
 
   // Hotel-specific states
   const [hotelName, setHotelName] = useState(hotelDetails?.name || '');
-  const [hotelLocalName, setHotelLocalName] = useState(hotelDetails?.localName || '');
   const [hotelAddress, setHotelAddress] = useState(hotelDetails?.address || '');
-  const [hotelLocalAddress, setHotelLocalAddress] = useState(hotelDetails?.localAddress || '');
   const [hotelCity, setHotelCity] = useState(hotelDetails?.city || '');
-  const [hotelCustomGpsUrl, setHotelCustomGpsUrl] = useState(hotelDetails?.customGpsUrl || '');
   const [checkInDateTime, setCheckInDateTime] = useState(hotelDetails?.checkInTime ? new Date(hotelDetails.checkInTime) : new Date());
   const [checkOutDateTime, setCheckOutDateTime] = useState(hotelDetails?.checkOutTime ? new Date(hotelDetails.checkOutTime) : new Date());
   const [showCheckInDate, setShowCheckInDate] = useState(false);
@@ -189,6 +194,9 @@ export default function EditEntryScreen() {
   const [transportEndTime, setTransportEndTime] = useState(transportDetails?.endTime ? new Date(transportDetails.endTime) : new Date(new Date().setHours(new Date().getHours() + 1)));
   const [showTransportStartTime, setShowTransportStartTime] = useState(false);
   const [showTransportEndTime, setShowTransportEndTime] = useState(false);
+  const [transportFrom, setTransportFrom] = useState(transportDetails?.from || '');
+  const [transportTo, setTransportTo] = useState(transportDetails?.to || '');
+  const [transportDropOffAddress, setTransportDropOffAddress] = useState(transportDetails?.dropOffAddress || '');
 
   const formatDateTime = (d: Date) => {
     return d.toLocaleDateString('en-US', {
@@ -240,11 +248,8 @@ export default function EditEntryScreen() {
 
       if (existingEntry.hotelDetails) {
         setHotelName(existingEntry.hotelDetails.name || '');
-        setHotelLocalName(existingEntry.hotelDetails.localName || '');
         setHotelAddress(existingEntry.hotelDetails.address || '');
-        setHotelLocalAddress(existingEntry.hotelDetails.localAddress || '');
         setHotelCity(existingEntry.hotelDetails.city || '');
-        setHotelCustomGpsUrl(existingEntry.hotelDetails.customGpsUrl || '');
         if (existingEntry.hotelDetails.checkInTime) setCheckInDateTime(new Date(existingEntry.hotelDetails.checkInTime));
         if (existingEntry.hotelDetails.checkOutTime) setCheckOutDateTime(new Date(existingEntry.hotelDetails.checkOutTime));
       }
@@ -257,22 +262,13 @@ export default function EditEntryScreen() {
       if (existingEntry.transportDetails) {
         if (existingEntry.transportDetails.startTime) setTransportStartTime(new Date(existingEntry.transportDetails.startTime));
         if (existingEntry.transportDetails.endTime) setTransportEndTime(new Date(existingEntry.transportDetails.endTime));
+        setTransportFrom(existingEntry.transportDetails.from || '');
+        setTransportTo(existingEntry.transportDetails.to || '');
+        setTransportDropOffAddress(existingEntry.transportDetails.dropOffAddress || '');
       }
     }
   }, [existingEntry, isEditing]);
 
-  const handleShowGpsHelp = () => {
-    Alert.alert(
-      'GPS & Map Link Formats',
-      'You can paste any of the following:\n\n' +
-      '• Google Maps Share Link:\n  Open Google Maps > Share > Copy Link\n  (e.g. https://maps.app.goo.gl/...)\n\n' +
-      '• Full Google Maps URL:\n  (e.g. https://google.com/maps/place/...)\n\n' +
-      '• Apple Maps Link:\n  (e.g. https://maps.apple.com/?...)\n\n' +
-      '• Raw Coordinates:\n  (e.g. 21.0337, 105.8504)\n\n' +
-      'When viewing the driver card, tapping "Open GPS Navigation" launches your maps app directly to this exact pin.',
-      [{ text: 'Got it' }]
-    );
-  };
 
   const handleSave = async () => {
     let finalTitle = title.trim();
@@ -289,13 +285,13 @@ export default function EditEntryScreen() {
     if (!finalTitle) return;
 
     await updateEntry({
-      id: params.entryId || '',
-      tripId: params.tripId || '',
+      id: targetEntryId,
+      tripId: existingEntry?.tripId || params.tripId || '',
       type,
       title: finalTitle,
       date: toLocalDateString(finalDate),
       price: parseFloat(price) || 0,
-      currency: params.currency || 'USD',
+      currency: existingEntry?.currency || params.currency || state.settings.selectedCurrencies[0] || 'USD',
       notes: notes.trim(),
       createdAt: existingEntry?.createdAt || new Date().toISOString(),
       documents,
@@ -333,13 +329,13 @@ export default function EditEntryScreen() {
       ...(type === 'hotel' && {
         hotelDetails: {
           name: hotelName.trim(),
-          localName: hotelLocalName.trim() || undefined,
           address: hotelAddress.trim(),
-          localAddress: hotelLocalAddress.trim() || undefined,
           city: hotelCity.trim(),
-          customGpsUrl: hotelCustomGpsUrl.trim() || undefined,
           checkInTime: checkInDateTime.toISOString(),
           checkOutTime: checkOutDateTime.toISOString(),
+          localName: existingEntry?.hotelDetails?.localName,
+          localAddress: existingEntry?.hotelDetails?.localAddress,
+          customGpsUrl: existingEntry?.hotelDetails?.customGpsUrl,
         }
       }),
       ...(type === 'attraction' && {
@@ -353,6 +349,12 @@ export default function EditEntryScreen() {
         transportDetails: {
           startTime: new Date(new Date(date).setHours(transportStartTime.getHours(), transportStartTime.getMinutes())).toISOString(),
           endTime: new Date(new Date(date).setHours(transportEndTime.getHours(), transportEndTime.getMinutes())).toISOString(),
+          from: transportFrom.trim() || undefined,
+          to: transportTo.trim() || undefined,
+          dropOffAddress: transportDropOffAddress.trim() || undefined,
+          localName: existingEntry?.transportDetails?.localName,
+          localAddress: existingEntry?.transportDetails?.localAddress,
+          customGpsUrl: existingEntry?.transportDetails?.customGpsUrl,
         }
       })
     });
@@ -368,7 +370,7 @@ export default function EditEntryScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteEntry(params.entryId || '');
+          await deleteEntry(targetEntryId);
           router.back();
         },
       },
@@ -899,20 +901,9 @@ export default function EditEntryScreen() {
               </View>
 
               <View style={[styles.field, { marginBottom: 12 }]}>
-                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Hotel Name in Local Language (Optional)</Text>
-                <TextInput editable={isEditing}
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-                  placeholder="e.g. Khách sạn Lồng Đèn Bạc"
-                  placeholderTextColor={colors.textMuted}
-                  value={hotelLocalName}
-                  onChangeText={setHotelLocalName}
-                />
-              </View>
-
-              <View style={[styles.field, { marginBottom: 12 }]}>
                 <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Address</Text>
                 <TextInput editable={isEditing}
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  style={[styles.input, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', color: colors.text, paddingHorizontal: isEditing ? 12 : 0 }]}
                   placeholder="e.g. 15 Place Vendôme"
                   placeholderTextColor={colors.textMuted}
                   value={hotelAddress}
@@ -921,45 +912,13 @@ export default function EditEntryScreen() {
               </View>
 
               <View style={[styles.field, { marginBottom: 12 }]}>
-                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Address in Local Language (Optional)</Text>
-                <TextInput editable={isEditing}
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-                  placeholder="e.g. 12 Phố Cổ, Hoàn Kiếm, Hà Nội"
-                  placeholderTextColor={colors.textMuted}
-                  value={hotelLocalAddress}
-                  onChangeText={setHotelLocalAddress}
-                />
-              </View>
-
-              <View style={[styles.field, { marginBottom: 12 }]}>
                 <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>City</Text>
                 <TextInput editable={isEditing}
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  style={[styles.input, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', color: colors.text, paddingHorizontal: isEditing ? 12 : 0 }]}
                   placeholder="e.g. Paris"
                   placeholderTextColor={colors.textMuted}
                   value={hotelCity}
                   onChangeText={setHotelCity}
-                />
-              </View>
-
-              <View style={[styles.field, { marginBottom: 12 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={[Typography.label, { color: colors.textMuted }]}>Google Maps Link / GPS (Optional)</Text>
-                  <TouchableOpacity
-                    onPress={handleShowGpsHelp}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="information-circle-outline" size={17} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-                <TextInput editable={isEditing}
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-                  placeholder="e.g. https://maps.app.goo.gl/... or 21.033, 105.850"
-                  placeholderTextColor={colors.textMuted}
-                  value={hotelCustomGpsUrl}
-                  onChangeText={setHotelCustomGpsUrl}
-                  autoCapitalize="none"
-                  autoCorrect={false}
                 />
               </View>
 
@@ -1116,19 +1075,58 @@ export default function EditEntryScreen() {
             </View>
           )}
 
-          {/* Transport Times (Conditional) */}
+          {/* Transport Details (Conditional) */}
           {type === 'transport' && (
-            <View style={[styles.field, { backgroundColor: colors.primary + '10', padding: 12, borderRadius: 12 }]}>
-              <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Time (Pickup & Dropoff)</Text>
-              <View style={styles.row}>
-                <TouchableOpacity disabled={!isEditing} style={[styles.dateButton, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', flex: 1, marginRight: 8, paddingHorizontal: isEditing ? 12 : 0 }]} onPress={() => setShowTransportStartTime(true)}>
-                  <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportStartTime, state.settings.timeFormat)}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity disabled={!isEditing} style={[styles.dateButton, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', flex: 1, paddingHorizontal: isEditing ? 12 : 0 }]} onPress={() => setShowTransportEndTime(true)}>
-                  <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportEndTime, state.settings.timeFormat)}</Text>
-                </TouchableOpacity>
+            <View style={{ backgroundColor: colors.primary + '10', paddingVertical: 16, marginBottom: 20, borderRadius: 16 }}>
+              {/* Route: From & To */}
+              <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 12, marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>From (Pickup)</Text>
+                  <TextInput editable={isEditing}
+                    style={[styles.input, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', color: colors.text, paddingHorizontal: isEditing ? 12 : 0 }]}
+                    placeholder="e.g. Airport, Station"
+                    placeholderTextColor={colors.textMuted}
+                    value={transportFrom}
+                    onChangeText={setTransportFrom}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>To (Dropoff)</Text>
+                  <TextInput editable={isEditing}
+                    style={[styles.input, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', color: colors.text, paddingHorizontal: isEditing ? 12 : 0 }]}
+                    placeholder="e.g. Hotel, Spot"
+                    placeholderTextColor={colors.textMuted}
+                    value={transportTo}
+                    onChangeText={setTransportTo}
+                  />
+                </View>
+              </View>
+
+              {/* Dropoff Address */}
+              <View style={[styles.field, { marginBottom: 12 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Dropoff Address</Text>
+                <TextInput editable={isEditing}
+                  style={[styles.input, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', color: colors.text, paddingHorizontal: isEditing ? 12 : 0 }]}
+                  placeholder="e.g. 15 Place Vendôme"
+                  placeholderTextColor={colors.textMuted}
+                  value={transportDropOffAddress}
+                  onChangeText={setTransportDropOffAddress}
+                />
+              </View>
+
+              {/* Time */}
+              <View style={[styles.field, { marginBottom: 0 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Time (Pickup & Dropoff)</Text>
+                <View style={styles.row}>
+                  <TouchableOpacity disabled={!isEditing} style={[styles.dateButton, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', flex: 1, marginRight: 8, paddingHorizontal: isEditing ? 12 : 0 }]} onPress={() => setShowTransportStartTime(true)}>
+                    <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportStartTime, state.settings.timeFormat)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity disabled={!isEditing} style={[styles.dateButton, { backgroundColor: isEditing ? colors.inputBg : 'transparent', borderColor: isEditing ? colors.inputBorder : 'transparent', flex: 1, paddingHorizontal: isEditing ? 12 : 0 }]} onPress={() => setShowTransportEndTime(true)}>
+                    <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportEndTime, state.settings.timeFormat)}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <DualModeTimePickerModal
                 visible={showTransportStartTime}

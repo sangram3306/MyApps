@@ -98,6 +98,12 @@ export interface ItineraryEntry {
   transportDetails?: {
     startTime: string; // ISO datetime
     endTime: string;   // ISO datetime
+    from?: string;
+    to?: string;
+    dropOffAddress?: string;
+    localName?: string;
+    localAddress?: string;
+    customGpsUrl?: string;
   };
 }
 
@@ -113,6 +119,7 @@ export interface AppSettings {
     attraction: boolean;
   };
   showDocumentBadge?: boolean;
+  showUpNextCard?: boolean;
   realtimeTimeline?: boolean;
   timeFormat?: '12h' | '24h';
   notificationSettings?: {

@@ -72,11 +72,8 @@ export default function AddEntryScreen() {
 
   // Hotel-specific states
   const [hotelName, setHotelName] = useState('');
-  const [hotelLocalName, setHotelLocalName] = useState('');
   const [hotelAddress, setHotelAddress] = useState('');
-  const [hotelLocalAddress, setHotelLocalAddress] = useState('');
   const [hotelCity, setHotelCity] = useState('');
-  const [hotelCustomGpsUrl, setHotelCustomGpsUrl] = useState('');
   const [checkInDateTime, setCheckInDateTime] = useState(new Date());
   const [checkOutDateTime, setCheckOutDateTime] = useState(new Date());
   const [showCheckInDate, setShowCheckInDate] = useState(false);
@@ -96,6 +93,9 @@ export default function AddEntryScreen() {
   const [transportEndTime, setTransportEndTime] = useState(new Date(new Date().setHours(new Date().getHours() + 1)));
   const [showTransportStartTime, setShowTransportStartTime] = useState(false);
   const [showTransportEndTime, setShowTransportEndTime] = useState(false);
+  const [transportFrom, setTransportFrom] = useState('');
+  const [transportTo, setTransportTo] = useState('');
+  const [transportDropOffAddress, setTransportDropOffAddress] = useState('');
 
   // Documents state
   const [documents, setDocuments] = useState<any[]>([]);
@@ -115,18 +115,6 @@ export default function AddEntryScreen() {
     });
   };
 
-  const handleShowGpsHelp = () => {
-    Alert.alert(
-      'GPS & Map Link Formats',
-      'You can paste any of the following:\n\n' +
-      '• Google Maps Share Link:\n  Open Google Maps > Share > Copy Link\n  (e.g. https://maps.app.goo.gl/...)\n\n' +
-      '• Full Google Maps URL:\n  (e.g. https://google.com/maps/place/...)\n\n' +
-      '• Apple Maps Link:\n  (e.g. https://maps.apple.com/?...)\n\n' +
-      '• Raw Coordinates:\n  (e.g. 21.0337, 105.8504)\n\n' +
-      'When viewing the driver card, tapping "Open GPS Navigation" launches your maps app directly to this exact pin.',
-      [{ text: 'Got it' }]
-    );
-  };
 
   const handleSave = async () => {
     let finalTitle = title.trim();
@@ -187,11 +175,8 @@ export default function AddEntryScreen() {
       ...(type === 'hotel' && {
         hotelDetails: {
           name: hotelName.trim(),
-          localName: hotelLocalName.trim() || undefined,
           address: hotelAddress.trim(),
-          localAddress: hotelLocalAddress.trim() || undefined,
           city: hotelCity.trim(),
-          customGpsUrl: hotelCustomGpsUrl.trim() || undefined,
           checkInTime: checkInDateTime.toISOString(),
           checkOutTime: checkOutDateTime.toISOString(),
         }
@@ -207,6 +192,9 @@ export default function AddEntryScreen() {
         transportDetails: {
           startTime: new Date(new Date(date).setHours(transportStartTime.getHours(), transportStartTime.getMinutes())).toISOString(),
           endTime: new Date(new Date(date).setHours(transportEndTime.getHours(), transportEndTime.getMinutes())).toISOString(),
+          from: transportFrom.trim() || undefined,
+          to: transportTo.trim() || undefined,
+          dropOffAddress: transportDropOffAddress.trim() || undefined,
         }
       })
     };
@@ -669,17 +657,6 @@ export default function AddEntryScreen() {
               </View>
 
               <View style={[styles.field, { marginBottom: 12 }]}>
-                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Hotel Name in Local Language (Optional)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-                  placeholder="e.g. Khách sạn Lồng Đèn Bạc"
-                  placeholderTextColor={colors.textMuted}
-                  value={hotelLocalName}
-                  onChangeText={setHotelLocalName}
-                />
-              </View>
-
-              <View style={[styles.field, { marginBottom: 12 }]}>
                 <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Address</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
@@ -691,17 +668,6 @@ export default function AddEntryScreen() {
               </View>
 
               <View style={[styles.field, { marginBottom: 12 }]}>
-                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Address in Local Language (Optional)</Text>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-                  placeholder="e.g. 12 Phố Cổ, Hoàn Kiếm, Hà Nội"
-                  placeholderTextColor={colors.textMuted}
-                  value={hotelLocalAddress}
-                  onChangeText={setHotelLocalAddress}
-                />
-              </View>
-
-              <View style={[styles.field, { marginBottom: 12 }]}>
                 <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>City</Text>
                 <TextInput
                   style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
@@ -709,27 +675,6 @@ export default function AddEntryScreen() {
                   placeholderTextColor={colors.textMuted}
                   value={hotelCity}
                   onChangeText={setHotelCity}
-                />
-              </View>
-
-              <View style={[styles.field, { marginBottom: 12 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Text style={[Typography.label, { color: colors.textMuted }]}>Google Maps Link / GPS (Optional)</Text>
-                  <TouchableOpacity
-                    onPress={handleShowGpsHelp}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="information-circle-outline" size={17} color={colors.primary} />
-                  </TouchableOpacity>
-                </View>
-                <TextInput
-                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
-                  placeholder="e.g. https://maps.app.goo.gl/... or 21.033, 105.850"
-                  placeholderTextColor={colors.textMuted}
-                  value={hotelCustomGpsUrl}
-                  onChangeText={setHotelCustomGpsUrl}
-                  autoCapitalize="none"
-                  autoCorrect={false}
                 />
               </View>
 
@@ -885,19 +830,58 @@ export default function AddEntryScreen() {
             </View>
           )}
 
-          {/* Transport Times (Conditional) */}
+          {/* Transport Details (Conditional) */}
           {type === 'transport' && (
-            <View style={[styles.field, { backgroundColor: colors.primary + '10', padding: 12, borderRadius: 12 }]}>
-              <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Time (Pickup & Dropoff)</Text>
-              <View style={styles.row}>
-                <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1, marginRight: 8 }]} onPress={() => setShowTransportStartTime(true)}>
-                  <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportStartTime, state.settings.timeFormat)}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowTransportEndTime(true)}>
-                  <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                  <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportEndTime, state.settings.timeFormat)}</Text>
-                </TouchableOpacity>
+            <View style={{ backgroundColor: colors.primary + '10', paddingVertical: 16, marginBottom: 20, borderRadius: 16 }}>
+              {/* Route: From & To */}
+              <View style={{ flexDirection: 'row', gap: 10, marginHorizontal: 12, marginBottom: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>From (Pickup)</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                    placeholder="e.g. Airport, Station"
+                    placeholderTextColor={colors.textMuted}
+                    value={transportFrom}
+                    onChangeText={setTransportFrom}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>To (Dropoff)</Text>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                    placeholder="e.g. Hotel, Spot"
+                    placeholderTextColor={colors.textMuted}
+                    value={transportTo}
+                    onChangeText={setTransportTo}
+                  />
+                </View>
+              </View>
+
+              {/* Dropoff Address */}
+              <View style={[styles.field, { marginBottom: 12 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Dropoff Address</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder="e.g. 15 Place Vendôme"
+                  placeholderTextColor={colors.textMuted}
+                  value={transportDropOffAddress}
+                  onChangeText={setTransportDropOffAddress}
+                />
+              </View>
+
+              {/* Time */}
+              <View style={[styles.field, { marginBottom: 0 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Time (Pickup & Dropoff)</Text>
+                <View style={styles.row}>
+                  <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1, marginRight: 8 }]} onPress={() => setShowTransportStartTime(true)}>
+                    <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportStartTime, state.settings.timeFormat)}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.dateButton, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, flex: 1 }]} onPress={() => setShowTransportEndTime(true)}>
+                    <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                    <Text style={[Typography.captionMedium, { color: colors.text, marginLeft: 8 }]}>{formatTime(transportEndTime, state.settings.timeFormat)}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <DualModeTimePickerModal
                 visible={showTransportStartTime}
