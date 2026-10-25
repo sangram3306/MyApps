@@ -1152,7 +1152,7 @@ export default function EditEntryScreen() {
           {/* Price */}
           <View style={styles.field}>
             <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>
-              Price ({params.currency || 'USD'})
+              Price ({existingEntry?.currency || params.currency || state.settings.selectedCurrencies[0] || 'USD'})
             </Text>
             <TextInput editable={isEditing}
               style={[

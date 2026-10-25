@@ -20,7 +20,7 @@ import FAB from '../../src/components/FAB';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getCityImages, saveCityImages, getEntryImages, saveEntryImages } from '../../src/storage/asyncStorage';
-import { formatTime } from '../../src/utils/date';
+import { formatTime, parseLocalDate } from '../../src/utils/date';
 import EmergencyModal from '../../src/components/EmergencyModal';
 import TripDocumentsModal from '../../src/components/TripDocumentsModal';
 import { exportItineraryPdf } from '../../src/utils/pdfGenerator';
@@ -174,12 +174,11 @@ export default function ItineraryScreen() {
   };
 
   const getEntryStartTime = (entry: ItineraryEntry) => {
-    if (entry.type === 'flight' && entry.flightDetails) return new Date(entry.flightDetails.departureTime).getTime();
-    if (entry.type === 'hotel' && entry.hotelDetails) return new Date(entry.hotelDetails.checkInTime).getTime();
-    if (entry.type === 'attraction' && entry.attractionDetails) return new Date(entry.attractionDetails.startTime).getTime();
-    if (entry.type === 'transport' && entry.transportDetails) return new Date(entry.transportDetails.startTime).getTime();
-    const [year, month, day] = entry.date.split('-').map(Number);
-    return new Date(year, month - 1, day).getTime();
+    if (entry.type === 'flight' && entry.flightDetails?.departureTime) return new Date(entry.flightDetails.departureTime).getTime();
+    if (entry.type === 'hotel' && entry.hotelDetails?.checkInTime) return new Date(entry.hotelDetails.checkInTime).getTime();
+    if (entry.type === 'attraction' && entry.attractionDetails?.startTime) return new Date(entry.attractionDetails.startTime).getTime();
+    if (entry.type === 'transport' && entry.transportDetails?.startTime) return new Date(entry.transportDetails.startTime).getTime();
+    return parseLocalDate(entry.date).getTime();
   };
 
   const getEntryEndTime = (vEntry: VirtualItineraryEntry) => {

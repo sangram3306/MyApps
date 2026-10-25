@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Trip } from '../types';
 import { Colors } from '../theme/colors';
 import { Typography } from '../theme/typography';
+import { parseLocalDate } from '../utils/date';
 
 interface TripCardProps {
   trip: Trip;
@@ -31,8 +32,8 @@ export default function TripCard({
   const colors = Colors[theme];
 
   const formatDateRange = () => {
-    const start = new Date(computedStartDate || trip.startDate);
-    const end = new Date(computedEndDate || trip.endDate);
+    const start = parseLocalDate(computedStartDate || trip.startDate);
+    const end = parseLocalDate(computedEndDate || trip.endDate);
     const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
     const startStr = start.toLocaleDateString('en-US', opts);
     const endStr = end.toLocaleDateString('en-US', { ...opts, year: 'numeric' });
@@ -53,8 +54,8 @@ export default function TripCard({
   const badgeText = trip.status || (isActive ? 'ACTIVE' : '');
 
   const getDayCount = () => {
-    const start = new Date(computedStartDate || trip.startDate);
-    const end = new Date(computedEndDate || trip.endDate);
+    const start = parseLocalDate(computedStartDate || trip.startDate);
+    const end = parseLocalDate(computedEndDate || trip.endDate);
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;

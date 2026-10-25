@@ -72,22 +72,30 @@ export default function FlightCard({
       >
         {/* Top Header Block - Solid Color */}
         <View style={[styles.solidHeader, { backgroundColor: headerBg }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, paddingRight: 6 }}>
             <Ionicons name="airplane" size={14} color="#FFF" />
-            <Text style={[Typography.captionSemibold, { color: '#FFF', marginLeft: 6, letterSpacing: 1.5, fontSize: 10, flexShrink: 1 }]} numberOfLines={1}>
+            <Text
+              style={{
+                color: '#FFF',
+                marginLeft: 6,
+                letterSpacing: 0.5,
+                fontSize: 11,
+                fontWeight: '600',
+              }}
+              numberOfLines={1}
+            >
               {flightType === 'international' ? 'INTERNATIONAL FLIGHT' : 'DOMESTIC FLIGHT'}
             </Text>
           </View>
           {showPrice !== false && entry.price > 0 && (
             <Text
-              style={[
-                Typography.captionSemibold,
-                {
-                  color: '#FFF',
-                  fontSize: 12,
-                  marginRight: (entry.documents && entry.documents.length > 0 && (state.settings.showDocumentBadge ?? true)) ? 24 : 0,
-                },
-              ]}
+              style={{
+                color: '#FFF',
+                fontSize: 12,
+                fontWeight: '600',
+                marginRight: (entry.documents && entry.documents.length > 0 && (state.settings.showDocumentBadge ?? true)) ? 14 : 0,
+              }}
+              numberOfLines={1}
             >
               {formatCurrency(displayPrice, primaryCurrency)}
             </Text>
@@ -283,8 +291,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
   body: {
     padding: 14,

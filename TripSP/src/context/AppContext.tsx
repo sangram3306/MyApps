@@ -4,6 +4,7 @@ import * as Storage from '../storage/asyncStorage';
 import { getExchangeRates, fetchAndCacheRates, saveExchangeRates } from '../data/exchangeRates';
 import * as Crypto from 'expo-crypto';
 import { syncAllNotifications, cancelTripNotifications } from '../utils/notifications';
+import { parseLocalDate } from '../utils/date';
 
 // ─── State ──────────────────────────────────────────
 
@@ -275,12 +276,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!state.activeTripId) return [];
     
     const getEntryStartTime = (entry: ItineraryEntry) => {
-      if (entry.type === 'flight' && entry.flightDetails) return new Date(entry.flightDetails.departureTime).getTime();
-      if (entry.type === 'hotel' && entry.hotelDetails) return new Date(entry.hotelDetails.checkInTime).getTime();
-      if (entry.type === 'attraction' && entry.attractionDetails) return new Date(entry.attractionDetails.startTime).getTime();
-      if (entry.type === 'transport' && entry.transportDetails) return new Date(entry.transportDetails.startTime).getTime();
-      const [year, month, day] = entry.date.split('-').map(Number);
-      return new Date(year, month - 1, day).getTime();
+      if (entry.type === 'flight' && entry.flightDetails?.departureTime) return new Date(entry.flightDetails.departureTime).getTime();
+      if (entry.type === 'hotel' && entry.hotelDetails?.checkInTime) return new Date(entry.hotelDetails.checkInTime).getTime();
+      if (entry.type === 'attraction' && entry.attractionDetails?.startTime) return new Date(entry.attractionDetails.startTime).getTime();
+      if (entry.type === 'transport' && entry.transportDetails?.startTime) return new Date(entry.transportDetails.startTime).getTime();
+      return parseLocalDate(entry.date).getTime();
     };
 
     return state.entries

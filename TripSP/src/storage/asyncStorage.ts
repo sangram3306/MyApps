@@ -33,6 +33,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   multiScreenItinerary: false,
   showCardImages: { city: true, hotel: true, attraction: true },
   showDocumentBadge: true,
+  showUpNextCard: true,
+  realtimeTimeline: true,
   timeFormat: '12h',
   notificationSettings: {
     enabled: true,
