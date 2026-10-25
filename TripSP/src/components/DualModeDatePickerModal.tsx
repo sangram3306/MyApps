@@ -57,9 +57,9 @@ export default function DualModeDatePickerModal({
   const [viewMonth, setViewMonth] = useState(0); // 0-indexed
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(value));
 
-  const dayRef = useRef<TextInput>(null);
-  const monthRef = useRef<TextInput>(null);
-  const yearRef = useRef<TextInput>(null);
+  const dayRef = useRef<any>(null);
+  const monthRef = useRef<any>(null);
+  const yearRef = useRef<any>(null);
 
   // Sync state whenever modal opens or value changes
   useEffect(() => {

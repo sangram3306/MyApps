@@ -18,7 +18,7 @@ import { useApp } from '../src/context/AppContext';
 import { Colors } from '../src/theme/colors';
 import { Typography } from '../src/theme/typography';
 import { Trip, TripStatus } from '../src/types';
-import { toLocalDateString } from '../src/utils/date';
+import { toLocalDateString, parseLocalDate } from '../src/utils/date';
 import { CURRENCIES } from '../src/data/exchangeRates';
 import * as Crypto from 'expo-crypto';
 
@@ -33,8 +33,8 @@ export default function EditTripScreen() {
   const colors = Colors[state.settings.theme];
 
   const [name, setName] = useState(trip?.name || '');
-  const [startDate, setStartDate] = useState(trip ? new Date(trip.startDate) : new Date());
-  const [endDate, setEndDate] = useState(trip ? new Date(trip.endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+  const [startDate, setStartDate] = useState(trip ? parseLocalDate(trip.startDate) : new Date());
+  const [endDate, setEndDate] = useState(trip ? parseLocalDate(trip.endDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
   const [baseCurrency, setBaseCurrency] = useState(trip?.baseCurrency || 'USD');
   const [status, setStatus] = useState<TripStatus>(trip?.status || 'ACTIVE');
   const [showStartPicker, setShowStartPicker] = useState(false);

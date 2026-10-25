@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { isRunningInExpoGo, requireOptionalNativeModule } from 'expo';
 import { Trip, ItineraryEntry, AppSettings } from '../types';
 
 let _notificationsModule: typeof import('expo-notifications') | null = null;
@@ -31,10 +32,29 @@ function getNotifications(): typeof import('expo-notifications') | null {
   _checked = true;
 
   try {
-    // Expo Go (StoreClient) does not include expo-notifications native binaries in SDK 52/53
-    const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-    if (isExpoGo) {
+    // 1. Official Expo check for Expo Go client
+    if (typeof isRunningInExpoGo === 'function' && isRunningInExpoGo()) {
       return null;
+    }
+
+    // 2. Constants environment fallback
+    const isStoreClient =
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any).appOwnership === 'expo';
+    if (isStoreClient) {
+      return null;
+    }
+
+    // 3. On Android, Expo Go omits native module binaries.
+    // Check if the binary exists before requiring to avoid uncaught fatal evaluation error.
+    if (Platform.OS === 'android') {
+      const hasTopicModule =
+        typeof requireOptionalNativeModule === 'function'
+          ? requireOptionalNativeModule('ExpoTopicSubscriptionModule')
+          : null;
+      if (!hasTopicModule) {
+        return null;
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -305,19 +325,15 @@ export async function scheduleTripNotifications(
     return 0;
   }
 }
+let _isSyncing = false;
+let _pendingSync: { trips: Trip[]; entries: ItineraryEntry[]; settings?: AppSettings; resolve: (val: number) => void } | null = null;
 
-/**
- * Fully synchronizes all offline notifications across all active trips and entries.
- * Handles additions, modifications, cancellations, and settings changes.
- */
-export async function syncAllNotifications(
+async function doSyncAllNotifications(
+  Notifications: typeof import('expo-notifications'),
   trips: Trip[],
   entries: ItineraryEntry[],
   settings?: AppSettings
 ): Promise<number> {
-  const Notifications = getNotifications();
-  if (!Notifications) return 0;
-
   try {
     // If user disabled notifications in settings, cancel all and return
     if (settings?.notificationSettings?.enabled === false) {
@@ -354,6 +370,38 @@ export async function syncAllNotifications(
   } catch (err) {
     console.warn('Failed to sync all notifications:', err);
     return 0;
+  }
+}
+
+/**
+ * Fully synchronizes all offline notifications across all active trips and entries.
+ * Handles additions, modifications, cancellations, and settings changes.
+ * Guarantees serial execution through an internal mutex to prevent native bridge race conditions.
+ */
+export async function syncAllNotifications(
+  trips: Trip[],
+  entries: ItineraryEntry[],
+  settings?: AppSettings
+): Promise<number> {
+  const Notifications = getNotifications();
+  if (!Notifications) return 0;
+
+  if (_isSyncing) {
+    return new Promise<number>((resolve) => {
+      _pendingSync = { trips, entries, settings, resolve };
+    });
+  }
+
+  _isSyncing = true;
+  try {
+    return await doSyncAllNotifications(Notifications, trips, entries, settings);
+  } finally {
+    _isSyncing = false;
+    if (_pendingSync) {
+      const next = _pendingSync;
+      _pendingSync = null;
+      syncAllNotifications(next.trips, next.entries, next.settings).then(next.resolve);
+    }
   }
 }
 

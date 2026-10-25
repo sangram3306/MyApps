@@ -49,6 +49,7 @@ type Action =
   | { type: 'DELETE_TRIP'; payload: string }
   | { type: 'SET_ACTIVE_TRIP'; payload: string | null }
   | { type: 'ADD_ENTRY'; payload: ItineraryEntry }
+  | { type: 'ADD_ENTRIES'; payload: ItineraryEntry[] }
   | { type: 'UPDATE_ENTRY'; payload: ItineraryEntry }
   | { type: 'DELETE_ENTRY'; payload: string }
   | { type: 'UPDATE_SETTINGS'; payload: Partial<AppSettings> }
@@ -73,13 +74,16 @@ function appReducer(state: AppState, action: Action): AppState {
     case 'DELETE_TRIP': {
       const newTrips = state.trips.filter((t) => t.id !== action.payload);
       const newEntries = state.entries.filter((e) => e.tripId !== action.payload);
+      const newPacking = state.packingCategories.filter((c) => c.tripId !== action.payload);
       const newActiveTripId = state.activeTripId === action.payload ? null : state.activeTripId;
-      return { ...state, trips: newTrips, entries: newEntries, activeTripId: newActiveTripId };
+      return { ...state, trips: newTrips, entries: newEntries, packingCategories: newPacking, activeTripId: newActiveTripId };
     }
     case 'SET_ACTIVE_TRIP':
       return { ...state, activeTripId: action.payload };
     case 'ADD_ENTRY':
       return { ...state, entries: [...state.entries, action.payload] };
+    case 'ADD_ENTRIES':
+      return { ...state, entries: [...state.entries, ...action.payload] };
     case 'UPDATE_ENTRY':
       return {
         ...state,
@@ -202,20 +206,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
 
     const entriesToDuplicate = state.entries.filter(e => e.tripId === tripId);
-    
-    // Create new entries sequentially (or all together)
-    await Storage.addTrip(newTrip);
-    dispatch({ type: 'ADD_TRIP', payload: newTrip });
+    const newEntries: ItineraryEntry[] = entriesToDuplicate.map((entry) => ({
+      ...entry,
+      id: Crypto.randomUUID(),
+      tripId: newTripId,
+      createdAt: new Date().toISOString(),
+    }));
 
-    for (const entry of entriesToDuplicate) {
-      const newEntry: ItineraryEntry = {
-        ...entry,
-        id: Crypto.randomUUID(),
-        tripId: newTripId,
-        createdAt: new Date().toISOString(),
-      };
-      await Storage.addEntry(newEntry);
-      dispatch({ type: 'ADD_ENTRY', payload: newEntry });
+    await Storage.addTrip(newTrip);
+    if (newEntries.length > 0) {
+      await Storage.addEntries(newEntries);
+    }
+    dispatch({ type: 'ADD_TRIP', payload: newTrip });
+    if (newEntries.length > 0) {
+      dispatch({ type: 'ADD_ENTRIES', payload: newEntries });
     }
   };
 
@@ -272,6 +276,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const getEntryStartTime = (entry: ItineraryEntry) => {
       if (entry.type === 'flight' && entry.flightDetails) return new Date(entry.flightDetails.departureTime).getTime();
       if (entry.type === 'hotel' && entry.hotelDetails) return new Date(entry.hotelDetails.checkInTime).getTime();
+      if (entry.type === 'attraction' && entry.attractionDetails) return new Date(entry.attractionDetails.startTime).getTime();
+      if (entry.type === 'transport' && entry.transportDetails) return new Date(entry.transportDetails.startTime).getTime();
       const [year, month, day] = entry.date.split('-').map(Number);
       return new Date(year, month - 1, day).getTime();
     };

@@ -166,9 +166,11 @@ export function convertCurrency(
   toCurrency: string,
   rates: Record<string, number>
 ): number {
+  if (amount === undefined || amount === null || isNaN(amount)) return 0;
   if (fromCurrency === toCurrency) return amount;
   const fromRate = rates[fromCurrency] || 1;
   const toRate = rates[toCurrency] || 1;
+  if (fromRate <= 0) return 0;
   // Convert to USD first, then to target
   const usdAmount = amount / fromRate;
   return usdAmount * toRate;
@@ -185,9 +187,14 @@ export function formatCurrency(amount: number, currencyCode: string): string {
   const noDecimalCurrencies = ['JPY', 'KRW', 'VND', 'IDR', 'CLP', 'COP', 'HUF', 'PKR'];
   const decimals = noDecimalCurrencies.includes(currencyCode) ? 0 : 2;
 
+  if (amount === undefined || amount === null || isNaN(amount)) {
+    return `${symbol}0${decimals > 0 ? '.00' : ''}`;
+  }
+
+  const isNegative = amount < 0;
   const formatted = Math.abs(amount)
     .toFixed(decimals)
     .replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-  return `${symbol}${formatted}`;
+  return `${isNegative ? '-' : ''}${symbol}${formatted}`;
 }

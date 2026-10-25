@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -38,6 +38,7 @@ export default function CityDiyModal({
   const [checklist, setChecklist] = useState<CityDiyItem[]>([]);
   const [newIdea, setNewIdea] = useState('');
   const [activeTab, setActiveTab] = useState<'spots' | 'notes'>('spots');
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (visible && tripId && cityName) {
@@ -47,6 +48,14 @@ export default function CityDiyModal({
       });
     }
   }, [visible, storageKey]);
+
+  useEffect(() => {
+    return () => {
+      if (notesTimerRef.current) {
+        clearTimeout(notesTimerRef.current);
+      }
+    };
+  }, []);
 
   const persistData = async (updatedNotes: string, updatedList: CityDiyItem[]) => {
     setNotes(updatedNotes);
@@ -78,13 +87,26 @@ export default function CityDiyModal({
     await persistData(notes, updated);
   };
 
-  const handleNotesChange = async (text: string) => {
+  const handleNotesChange = (text: string) => {
     setNotes(text);
-    await saveCityDiyData(storageKey, { notes: text, checklist });
+    if (notesTimerRef.current) {
+      clearTimeout(notesTimerRef.current);
+    }
+    notesTimerRef.current = setTimeout(() => {
+      saveCityDiyData(storageKey, { notes: text, checklist });
+    }, 500);
+  };
+
+  const handleClose = async () => {
+    if (notesTimerRef.current) {
+      clearTimeout(notesTimerRef.current);
+    }
+    await saveCityDiyData(storageKey, { notes, checklist });
+    onClose();
   };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
@@ -101,7 +123,7 @@ export default function CityDiyModal({
               </Text>
             </View>
           </View>
-          <TouchableOpacity onPress={onClose} style={[styles.closeBtn, { backgroundColor: colors.inputBg }]}>
+          <TouchableOpacity onPress={handleClose} style={[styles.closeBtn, { backgroundColor: colors.inputBg }]}>
             <Ionicons name="close" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>

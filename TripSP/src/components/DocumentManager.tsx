@@ -36,7 +36,7 @@ export default function DocumentManager({
   const [selectedDoc, setSelectedDoc] = useState<DocumentInfo | null>(null);
   const [editingDoc, setEditingDoc] = useState<DocumentInfo | null>(null);
   const [editLabel, setEditLabel] = useState('');
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<any>(null);
 
   useEffect(() => {
     if (editingDoc) {
@@ -68,7 +68,8 @@ export default function DocumentManager({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const fileName = asset.name || `doc_${Date.now()}`;
-        const newUri = FileSystem.documentDirectory + encodeURIComponent(fileName);
+        const uniqueDiskName = `${Date.now()}_${encodeURIComponent(fileName)}`;
+        const newUri = FileSystem.documentDirectory + uniqueDiskName;
 
         await FileSystem.copyAsync({
           from: asset.uri,
@@ -76,7 +77,7 @@ export default function DocumentManager({
         });
 
         const newDoc: DocumentInfo = {
-          id: Math.random().toString(36).substr(2, 9),
+          id: Math.random().toString(36).substring(2, 11),
           name: fileName,
           uri: newUri,
           type: asset.mimeType || 'application/octet-stream',

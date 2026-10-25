@@ -5,6 +5,16 @@ export function toLocalDateString(date: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+export function parseLocalDate(dateStr?: string | null): Date {
+  if (!dateStr) return new Date();
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? new Date() : d;
+}
+
 export function formatTime(date: Date | string | number, format: '12h' | '24h' = '12h'): string {
   const d = date instanceof Date ? date : new Date(date);
   if (isNaN(d.getTime())) return '';

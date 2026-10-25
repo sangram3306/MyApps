@@ -24,7 +24,7 @@ import { CURRENCIES } from '../../src/data/exchangeRates';
 import CurrencyPicker from '../../src/components/CurrencyPicker';
 import { exportAllData, importAllData } from '../../src/storage/asyncStorage';
 import EmergencyModal from '../../src/components/EmergencyModal';
-import { requestNotificationPermissions, formatLeadTime, scheduleTripNotifications } from '../../src/utils/notifications';
+import { requestNotificationPermissions, formatLeadTime } from '../../src/utils/notifications';
 import AlertTimingModal, { AlertPreset } from '../../src/components/AlertTimingModal';
 
 const FLIGHT_PRESETS: AlertPreset[] = [
@@ -966,13 +966,6 @@ export default function SettingsScreen() {
           updateSettings({
             notificationSettings: updatedNotificationSettings,
           });
-          const activeTrip = getActiveTrip();
-          if (activeTrip) {
-            scheduleTripNotifications(activeTrip, getEntriesForActiveTrip(), {
-              ...state.settings,
-              notificationSettings: updatedNotificationSettings,
-            });
-          }
         }}
         theme={state.settings.theme}
       />

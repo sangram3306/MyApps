@@ -148,7 +148,7 @@ export default function TripsScreen() {
         </View>
       ) : (
         <FlatList
-          data={state.trips.sort((a, b) => b.createdAt.localeCompare(a.createdAt))}
+          data={[...state.trips].sort((a, b) => b.createdAt.localeCompare(a.createdAt))}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}

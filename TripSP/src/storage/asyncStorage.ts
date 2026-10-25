@@ -103,6 +103,17 @@ export async function deleteTrip(tripId: string): Promise<void> {
   // Also delete entries for this trip
   const entries = await getAllEntries();
   await saveAllEntries(entries.filter((e) => e.tripId !== tripId));
+  // Clean up activeTripId if it was the deleted trip
+  const activeId = await getActiveTripId();
+  if (activeId === tripId) {
+    await setActiveTripId(null);
+  }
+  // Clean up packing categories for this trip
+  const packing = await getPackingCategories();
+  const filteredPacking = packing.filter((c) => c.tripId !== tripId);
+  if (filteredPacking.length !== packing.length) {
+    await savePackingCategories(filteredPacking);
+  }
 }
 
 // ─── Active Trip ────────────────────────────────────
@@ -135,6 +146,13 @@ export async function getEntriesForTrip(tripId: string): Promise<ItineraryEntry[
 export async function addEntry(entry: ItineraryEntry): Promise<void> {
   const entries = await getAllEntries();
   entries.push(entry);
+  await saveAllEntries(entries);
+}
+
+export async function addEntries(newEntries: ItineraryEntry[]): Promise<void> {
+  if (!newEntries || newEntries.length === 0) return;
+  const entries = await getAllEntries();
+  entries.push(...newEntries);
   await saveAllEntries(entries);
 }
 
@@ -227,8 +245,28 @@ export async function exportAllData(): Promise<string> {
   const activeTripId = await getActiveTripId();
   const packing = await getPackingCategories();
 
-  // Read all documents attached to entries and encode to base64
+  // Read all documents attached to entries and trips, and encode to base64
   const documentFiles: Record<string, string> = {};
+
+  // Trip documents (Vault)
+  for (const trip of trips) {
+    if (trip.documents) {
+      for (const doc of trip.documents) {
+        try {
+          const fileInfo = await FileSystem.getInfoAsync(doc.uri);
+          if (fileInfo.exists) {
+            const base64 = await FileSystem.readAsStringAsync(doc.uri, { encoding: FileSystem.EncodingType.Base64 });
+            const fileKey = doc.uri.split('/').pop() || doc.name;
+            documentFiles[fileKey] = base64;
+          }
+        } catch (error) {
+          console.warn(`Failed to export trip document ${doc.name}`, error);
+        }
+      }
+    }
+  }
+
+  // Entry documents
   for (const entry of entries) {
     if (entry.documents) {
       for (const doc of entry.documents) {
@@ -236,10 +274,11 @@ export async function exportAllData(): Promise<string> {
           const fileInfo = await FileSystem.getInfoAsync(doc.uri);
           if (fileInfo.exists) {
             const base64 = await FileSystem.readAsStringAsync(doc.uri, { encoding: FileSystem.EncodingType.Base64 });
-            documentFiles[doc.name] = base64;
+            const fileKey = doc.uri.split('/').pop() || doc.name;
+            documentFiles[fileKey] = base64;
           }
         } catch (error) {
-          console.warn(`Failed to export document ${doc.name}`, error);
+          console.warn(`Failed to export entry document ${doc.name}`, error);
         }
       }
     }
@@ -276,6 +315,7 @@ export async function exportAllData(): Promise<string> {
   }
 
   const customCategories = await getCustomCategories();
+  const cityDiyNotes = await readJSON<Record<string, CityDiyData>>(FILE_NAMES.CITY_DIY_NOTES, {});
 
   const exportObject = {
     trips,
@@ -284,6 +324,7 @@ export async function exportAllData(): Promise<string> {
     activeTripId,
     packing,
     customCategories,
+    cityDiyNotes,
     documentFiles,
     cityImageFiles,
     entryImageFiles,
@@ -297,9 +338,8 @@ export async function importAllData(jsonString: string): Promise<boolean> {
     const data = JSON.parse(jsonString);
     if (!data.trips || !data.entries) throw new Error("Invalid backup file");
 
-    await saveTrips(data.trips);
-    await saveAllEntries(data.entries);
     if (data.customCategories) await saveCustomCategories(data.customCategories);
+    if (data.cityDiyNotes) await writeJSON(FILE_NAMES.CITY_DIY_NOTES, data.cityDiyNotes);
     if (data.settings) {
       if (Array.isArray(data.settings.selectedCurrencies) && data.settings.selectedCurrencies.length < 4) {
         const candidates = ['USD', 'EUR', 'GBP', 'VND', 'AED', 'SGD', 'THB', 'JPY'];
@@ -317,17 +357,59 @@ export async function importAllData(jsonString: string): Promise<boolean> {
     if (data.activeTripId !== undefined) await setActiveTripId(data.activeTripId);
     if (data.packing) await savePackingCategories(data.packing);
 
-    // Write back documents
+    // Ensure trip_docs directory exists for trip documents
+    const docsDir = `${FileSystem.documentDirectory}trip_docs/`;
+    try {
+      const dirInfo = await FileSystem.getInfoAsync(docsDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(docsDir, { intermediates: true });
+      }
+    } catch {
+      // Ignore directory creation error
+    }
+
+    // Write back documents and track restored URIs
+    const restoredDocUris: Record<string, string> = {};
     if (data.documentFiles) {
-      for (const [name, base64] of Object.entries(data.documentFiles)) {
+      for (const [fileKey, base64] of Object.entries(data.documentFiles)) {
         try {
-          const uri = FileSystem.documentDirectory + encodeURIComponent(name);
-          await FileSystem.writeAsStringAsync(uri, base64 as string, { encoding: FileSystem.EncodingType.Base64 });
+          const isTripDoc = fileKey.startsWith('trip_');
+          const targetDir = isTripDoc ? docsDir : FileSystem.documentDirectory;
+          const targetUri = targetDir + encodeURIComponent(fileKey);
+          await FileSystem.writeAsStringAsync(targetUri, base64 as string, { encoding: FileSystem.EncodingType.Base64 });
+          restoredDocUris[fileKey] = targetUri;
         } catch (err) {
-          console.warn(`Failed to import document ${name}`, err);
+          console.warn(`Failed to import document ${fileKey}`, err);
         }
       }
     }
+
+    // Map trips documents to restored local URIs
+    const restoredTrips = (data.trips as Trip[]).map((t) => ({
+      ...t,
+      documents: t.documents?.map((d) => {
+        const fileKey = d.uri.split('/').pop() || d.name;
+        return {
+          ...d,
+          uri: restoredDocUris[fileKey] || d.uri,
+        };
+      }),
+    }));
+
+    // Map entries documents to restored local URIs
+    const restoredEntries = (data.entries as ItineraryEntry[]).map((e) => ({
+      ...e,
+      documents: e.documents?.map((d) => {
+        const fileKey = d.uri.split('/').pop() || d.name;
+        return {
+          ...d,
+          uri: restoredDocUris[fileKey] || d.uri,
+        };
+      }),
+    }));
+
+    await saveTrips(restoredTrips);
+    await saveAllEntries(restoredEntries);
 
     // Write back city images
     if (data.cityImageFiles) {

@@ -133,7 +133,7 @@ export default function TripDocumentsModal({
   const [editingDoc, setEditingDoc] = useState<TripDocument | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editCategory, setEditCategory] = useState<TripDocumentCategory>('OTHER');
-  const renameInputRef = useRef<TextInput>(null);
+  const renameInputRef = useRef<any>(null);
 
   useEffect(() => {
     if (!visible) {

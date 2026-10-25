@@ -46,8 +46,8 @@ export default function DualModeTimePickerModal({
   const [minutes, setMinutes] = useState('00');
   const [ampm, setAmPm] = useState<'AM' | 'PM'>('PM');
 
-  const hourRef = useRef<TextInput>(null);
-  const minuteRef = useRef<TextInput>(null);
+  const hourRef = useRef<any>(null);
+  const minuteRef = useRef<any>(null);
 
   // Sync state whenever modal opens or value changes
   useEffect(() => {
