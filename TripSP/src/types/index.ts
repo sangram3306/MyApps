@@ -89,6 +89,7 @@ export interface ItineraryEntry {
     localName?: string;   // Name in local destination language
     localAddress?: string; // Address in local destination language
     customGpsUrl?: string; // Custom Google Maps link or coordinates
+    link?: string;
   };
   attractionDetails?: {
     startTime: string; // ISO datetime

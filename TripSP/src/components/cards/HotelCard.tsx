@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ItineraryEntry } from '../../types';
 import { Typography } from '../../theme/typography';
@@ -56,6 +56,12 @@ export default function HotelCard({
   const cardBg = meta.color + (theme === 'dark' ? '0A' : '05');
   const accentColor = meta.color;
 
+  const hotelLink =
+    details?.link ||
+    entry.hotelDetails?.link ||
+    (entry.notes && (entry.notes.startsWith('http://') || entry.notes.startsWith('https://')) ? entry.notes.trim() : undefined) ||
+    entry.notes?.match(/https?:\/\/[^\s]+/)?.[0];
+
   const content = (
     <View style={{ flex: 1 }}>
       {/* Header Row */}
@@ -67,6 +73,36 @@ export default function HotelCard({
           <Text style={[Typography.captionSemibold, { color: entryImageUri ? '#FFF' : accentColor, marginLeft: 8, letterSpacing: 1 }]}>
             {isCheckOutNode ? 'CHECK-OUT' : (isSummary ? 'HOTEL STAY' : 'CHECK-IN')}
           </Text>
+          {hotelLink ? (
+            <TouchableOpacity
+              style={[
+                styles.linkBtn,
+                {
+                  backgroundColor: entryImageUri ? 'rgba(0,0,0,0.55)' : (theme === 'dark' ? '#2A2C32' : '#EFF6FF'),
+                  borderColor: entryImageUri ? 'rgba(255,255,255,0.3)' : (theme === 'dark' ? '#3B82F650' : '#BFDBFE'),
+                },
+              ]}
+              onPress={async (e) => {
+                e.stopPropagation();
+                const raw = hotelLink.trim();
+                const url = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+                try {
+                  const supported = await Linking.canOpenURL(url);
+                  if (supported) {
+                    await Linking.openURL(url);
+                  } else {
+                    Alert.alert('Invalid Link', 'Could not open the provided website link.');
+                  }
+                } catch (err) {
+                  console.warn('Error opening hotel URL', err);
+                }
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="link" size={13} color={entryImageUri ? '#FFF' : (theme === 'dark' ? '#60A5FA' : '#2563EB')} />
+            </TouchableOpacity>
+          ) : null}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {onPickEntryImage && (
@@ -286,5 +322,14 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     paddingTop: 20,
+  },
+  linkBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
 });

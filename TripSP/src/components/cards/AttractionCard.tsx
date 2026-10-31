@@ -43,11 +43,43 @@ export default function AttractionCard({
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch' }}>
       <View style={{ flex: 1, paddingRight: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={[styles.badge, { backgroundColor: meta.color }]}>
-            <Ionicons name={meta.icon as any} size={12} color="#FFF" />
-            <Text style={[Typography.captionSemibold, { color: '#FFF', marginLeft: 4, textTransform: 'uppercase', fontSize: 10 }]}>
-              {meta.label}
-            </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={[styles.badge, { backgroundColor: meta.color }]}>
+              <Ionicons name={meta.icon as any} size={12} color="#FFF" />
+              <Text style={[Typography.captionSemibold, { color: '#FFF', marginLeft: 4, textTransform: 'uppercase', fontSize: 10 }]}>
+                {meta.label}
+              </Text>
+            </View>
+            {entry.attractionDetails?.link && (
+              <TouchableOpacity
+                style={[
+                  styles.linkBtn,
+                  {
+                    backgroundColor: entryImageUri ? 'rgba(0,0,0,0.55)' : (theme === 'dark' ? '#2A2C32' : '#EFF6FF'),
+                    borderColor: entryImageUri ? 'rgba(255,255,255,0.3)' : (theme === 'dark' ? '#3B82F650' : '#BFDBFE'),
+                  },
+                ]}
+                onPress={async (e) => {
+                  e.stopPropagation();
+                  const raw = entry.attractionDetails?.link?.trim() || '';
+                  const url = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+                  try {
+                    const supported = await Linking.canOpenURL(url);
+                    if (supported) {
+                      await Linking.openURL(url);
+                    } else {
+                      Alert.alert('Invalid Link', 'Could not open the provided website link.');
+                    }
+                  } catch (err) {
+                    console.warn('Error opening attraction URL', err);
+                  }
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="link" size={13} color={entryImageUri ? '#FFF' : (theme === 'dark' ? '#60A5FA' : '#2563EB')} />
+              </TouchableOpacity>
+            )}
           </View>
           {onPickEntryImage && (
             <TouchableOpacity
@@ -71,51 +103,6 @@ export default function AttractionCard({
               {formatTime(entry.attractionDetails.startTime, state.settings.timeFormat)} - {formatTime(entry.attractionDetails.endTime, state.settings.timeFormat)}
             </Text>
           </View>
-        )}
-
-        {entry.attractionDetails?.link && (
-          <TouchableOpacity
-            style={[
-              styles.linkPill,
-              {
-                backgroundColor: entryImageUri ? 'rgba(0,0,0,0.55)' : (theme === 'dark' ? '#2A2C32' : '#EFF6FF'),
-                borderColor: entryImageUri ? 'rgba(255,255,255,0.3)' : '#BFDBFE',
-              },
-            ]}
-            onPress={async (e) => {
-              e.stopPropagation();
-              const raw = entry.attractionDetails?.link?.trim() || '';
-              const url = raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
-              try {
-                const supported = await Linking.canOpenURL(url);
-                if (supported) {
-                  await Linking.openURL(url);
-                } else {
-                  Alert.alert('Invalid Link', 'Could not open the provided website link.');
-                }
-              } catch (err) {
-                console.warn('Error opening attraction URL', err);
-              }
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="link" size={13} color={entryImageUri ? '#FFF' : '#2563EB'} />
-            <Text
-              style={[
-                Typography.captionSemibold,
-                {
-                  color: entryImageUri ? '#FFF' : '#2563EB',
-                  marginLeft: 5,
-                  fontSize: 11,
-                  textDecorationLine: 'underline',
-                  maxWidth: 200,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {entry.attractionDetails.link.replace(/^https?:\/\/(www\.)?/, '')}
-            </Text>
-          </TouchableOpacity>
         )}
 
         {ongoingHotel && (
@@ -233,14 +220,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 16,
     paddingTop: 20,
   },
-  linkPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  linkBtn: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
     borderWidth: 1,
-    marginTop: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
 });

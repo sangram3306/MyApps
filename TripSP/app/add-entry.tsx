@@ -74,6 +74,7 @@ export default function AddEntryScreen() {
   const [hotelName, setHotelName] = useState('');
   const [hotelAddress, setHotelAddress] = useState('');
   const [hotelCity, setHotelCity] = useState('');
+  const [hotelLink, setHotelLink] = useState('');
   const [checkInDateTime, setCheckInDateTime] = useState(new Date());
   const [checkOutDateTime, setCheckOutDateTime] = useState(new Date());
   const [showCheckInDate, setShowCheckInDate] = useState(false);
@@ -179,6 +180,7 @@ export default function AddEntryScreen() {
           city: hotelCity.trim(),
           checkInTime: checkInDateTime.toISOString(),
           checkOutTime: checkOutDateTime.toISOString(),
+          link: hotelLink.trim() || undefined,
         }
       }),
       ...(type === 'attraction' && {
@@ -738,6 +740,20 @@ export default function AddEntryScreen() {
                   theme={state.settings.theme}
                   onConfirm={(d) => setCheckOutDateTime(d)}
                   onClose={() => setShowCheckOutTime(false)}
+                />
+              </View>
+
+              <View style={[styles.field, { marginBottom: 12 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Website / Booking Link (Optional)</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder="e.g. booking.com/hotel..."
+                  placeholderTextColor={colors.textMuted}
+                  value={hotelLink}
+                  onChangeText={setHotelLink}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
                 />
               </View>
             </View>

@@ -175,6 +175,7 @@ export default function EditEntryScreen() {
   const [hotelName, setHotelName] = useState(hotelDetails?.name || '');
   const [hotelAddress, setHotelAddress] = useState(hotelDetails?.address || '');
   const [hotelCity, setHotelCity] = useState(hotelDetails?.city || '');
+  const [hotelLink, setHotelLink] = useState(hotelDetails?.link || '');
   const [checkInDateTime, setCheckInDateTime] = useState(hotelDetails?.checkInTime ? new Date(hotelDetails.checkInTime) : new Date());
   const [checkOutDateTime, setCheckOutDateTime] = useState(hotelDetails?.checkOutTime ? new Date(hotelDetails.checkOutTime) : new Date());
   const [showCheckInDate, setShowCheckInDate] = useState(false);
@@ -250,6 +251,7 @@ export default function EditEntryScreen() {
         setHotelName(existingEntry.hotelDetails.name || '');
         setHotelAddress(existingEntry.hotelDetails.address || '');
         setHotelCity(existingEntry.hotelDetails.city || '');
+        setHotelLink(existingEntry.hotelDetails.link || '');
         if (existingEntry.hotelDetails.checkInTime) setCheckInDateTime(new Date(existingEntry.hotelDetails.checkInTime));
         if (existingEntry.hotelDetails.checkOutTime) setCheckOutDateTime(new Date(existingEntry.hotelDetails.checkOutTime));
       }
@@ -336,6 +338,7 @@ export default function EditEntryScreen() {
           localName: existingEntry?.hotelDetails?.localName,
           localAddress: existingEntry?.hotelDetails?.localAddress,
           customGpsUrl: existingEntry?.hotelDetails?.customGpsUrl,
+          link: hotelLink.trim() || undefined,
         }
       }),
       ...(type === 'attraction' && {
@@ -982,6 +985,20 @@ export default function EditEntryScreen() {
                   theme={state.settings.theme}
                   onConfirm={(d) => setCheckOutDateTime(d)}
                   onClose={() => setShowCheckOutTime(false)}
+                />
+              </View>
+
+              <View style={[styles.field, { marginBottom: 12 }]}>
+                <Text style={[Typography.label, { color: colors.textMuted, marginBottom: 8 }]}>Website / Booking Link (Optional)</Text>
+                <TextInput
+                  style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
+                  placeholder="e.g. booking.com/hotel..."
+                  placeholderTextColor={colors.textMuted}
+                  value={hotelLink}
+                  onChangeText={setHotelLink}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
                 />
               </View>
             </View>

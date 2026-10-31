@@ -48,6 +48,7 @@ export interface OngoingHotelMeta {
   checkOutLabel: string;
   checkInDateTime: string;   // e.g. "Nov 15, 14:00"
   checkOutDateTime: string;  // e.g. "Nov 19, 11:00"
+  link?: string;
 }
 
 export default function ItineraryScreen() {
@@ -369,6 +370,7 @@ export default function ItineraryScreen() {
           checkOutLabel: getShortDateLabel(entry.hotelDetails.checkOutTime),
           checkInDateTime: getShortDateTime(entry.hotelDetails.checkInTime),
           checkOutDateTime: getShortDateTime(entry.hotelDetails.checkOutTime),
+          link: entry.hotelDetails.link,
         },
       });
     }
